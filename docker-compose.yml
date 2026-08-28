@@ -1,0 +1,138 @@
+# ─────────────────────────────────────────────────────────────
+# Ossilith — Advanced Surgical Planning Platform
+# Production Docker Compose for GPU-Enabled Deployment
+# Pre-built images from GitHub Container Registry (GHCR)
+# ─────────────────────────────────────────────────────────────
+
+services:
+  # ── Frontend Web UI (Next.js 14 + Three.js 3D Viewer) ───────
+  frontend:
+    image: ghcr.io/ossilith/ossilith-frontend:latest
+    container_name: ossilith-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:${BACKEND_PORT:-8000}
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - ossilith-net
+
+  # ── Backend API (FastAPI + Async SQLite + DICOM Pipeline) ───
+  backend:
+    image: ghcr.io/ossilith/ossilith-backend:latest
+    container_name: ossilith-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ossilith-data:/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////data/ossilith.db
+      - DATA_DIR=/data/cases
+      - REDIS_URL=redis://redis:6379/0
+      - NNINTERACTIVE_MODE=remote
+      - NNINTERACTIVE_URL=http://nninteractive:1527
+      - NNINTERACTIVE_API_KEY=${NNINTERACTIVE_API_KEY:-}
+      - SECRET_KEY=${SECRET_KEY}
+      - BIND_HOST=0.0.0.0
+      - BACKEND_PORT=8000
+    depends_on:
+      redis:
+        condition: service_healthy
+      nninteractive:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r = httpx.get('http://localhost:8000/api/health'); r.raise_for_status()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - ossilith-net
+
+  # ── Background Task Worker (Celery + Redis) ────────────────
+  worker:
+    image: ghcr.io/ossilith/ossilith-backend:latest
+    container_name: ossilith-worker
+    restart: unless-stopped
+    command: celery -A app.celery_app:celery worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-2}
+    volumes:
+      - ossilith-data:/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////data/ossilith.db
+      - DATA_DIR=/data/cases
+      - REDIS_URL=redis://redis:6379/0
+      - NNINTERACTIVE_MODE=remote
+      - NNINTERACTIVE_URL=http://nninteractive:1527
+      - NNINTERACTIVE_API_KEY=${NNINTERACTIVE_API_KEY:-}
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ossilith-net
+
+  # ── Task Queue Broker & Cache (Redis) ──────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ossilith-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ossilith-net
+
+  # ── nnInteractive AI Inference Server (Local NVIDIA GPU) ───
+  nninteractive:
+    image: ghcr.io/mic-dkfz/nninteractive-server:latest
+    container_name: ossilith-nninteractive
+    restart: unless-stopped
+    ports:
+      - "${NNINTERACTIVE_PORT:-1527}:1527"
+    environment:
+      - NN_INTERACTIVE_API_KEY=${NNINTERACTIVE_API_KEY:-}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+    command: >
+      --host 0.0.0.0
+      --port 1527
+      --device cuda:0
+      --max-sessions ${NN_MAX_SESSIONS:-4}
+    volumes:
+      - nninteractive-models:/root/.cache/nnInteractive
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - ossilith-net
+
+# ── Persistent Storage Volumes ───────────────────────────────
+volumes:
+  ossilith-data:
+    name: ossilith_data
+  redis-data:
+    name: ossilith_redis_data
+  nninteractive-models:
+    name: ossilith_nninteractive_models
+
+# ── Isolated Internal Network ────────────────────────────────
+networks:
+  ossilith-net:
+    name: ossilith_network
+    driver: bridge

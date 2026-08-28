@@ -1,0 +1,37 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@cornerstonejs/core": "^5.8.2",
+    "@cornerstonejs/dicom-image-loader": "^5.8.2",
+    "@cornerstonejs/tools": "^5.8.2",
+    "@react-three/csg": "^4.0.0",
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "lucide-react": "^1.34.0",
+    "next": "16.3.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-dropzone": "^20.1.1",
+    "three": "^0.185.1",
+    "three-bvh-csg": "^0.0.18",
+    "three-mesh-bvh": "^0.9.14",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "^0.185.4",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.2",
+    "typescript": "^5"
+  }
+}
