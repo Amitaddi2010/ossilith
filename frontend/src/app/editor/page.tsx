@@ -1455,18 +1455,21 @@ export default function StandaloneEditorPage() {
             style={{
               position: 'absolute',
               bottom: 14,
-              left: '50%',
-              transform: 'translateX(-50%)',
+              left: 14,
               zIndex: 20,
               display: 'flex',
-              padding: '6px 18px',
-              gap: 16,
+              padding: '6px 14px',
+              gap: 14,
               borderRadius: 10,
               fontSize: 11.5,
               border: '1px solid var(--color-border-mist)',
               boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+              maxWidth: 'calc(100% - 260px)',
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
             }}
           >
+
             {['Position', 'Rotation', 'Scale'].map((label) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ color: 'var(--color-muted)', fontWeight: 600, fontSize: 10.5, width: 44 }}>
