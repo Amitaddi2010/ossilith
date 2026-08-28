@@ -763,3 +763,39 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
+/* ── Mobile & iPad 3D Viewport & Touch Ergonomics ───────── */
+
+@media (max-width: 1024px) {
+  /* Tablet / iPad Landscape & Portrait adjustments */
+  .editor-ribbon-scroll {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Mobile Phone Adjustments */
+  .editor-container {
+    height: 100dvh !important;
+    min-height: -webkit-fill-available;
+  }
+
+  .editor-ribbon-bar {
+    padding: 2px 4px !important;
+  }
+
+  .editor-ribbon-group-label {
+    display: none !important;
+  }
+}
+
+/* 3D Canvas touch containment — prevents browser gesture interference */
+canvas {
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+

@@ -818,7 +818,18 @@ export default function StandaloneEditorPage() {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: 'var(--color-cream-paper)' }}>
+    <div
+      className="editor-container"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100dvh',
+        minHeight: '-webkit-fill-available',
+        overflow: 'hidden',
+        backgroundColor: 'var(--color-cream-paper)',
+      }}
+    >
+
       {/* Hidden File Input for STL Upload */}
       <input
         ref={fileInputRef}

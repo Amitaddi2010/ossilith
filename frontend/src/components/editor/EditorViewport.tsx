@@ -17,8 +17,10 @@ import {
 } from '@/stores/editorStore';
 import { generateConnectorShapeGeometry, computeConnectorOrientation } from '@/lib/csg';
 import MeasurementTools3D from './MeasurementTools3D';
+import TouchNavigationHUD from './TouchNavigationHUD';
 
 interface EditorViewportProps {
+
   caseId: string;
 }
 
@@ -531,6 +533,114 @@ function CameraController() {
   return null;
 }
 
+/* ── 🎯 Zoom-To-Fit / Focus Model Controller ──────────────── */
+
+function ZoomToFitController() {
+  const { camera, scene } = useThree();
+  const { zoomToFitTrigger, objects, selectedIds } = useEditorStore();
+  const isFitting = useRef(false);
+  const fitProgress = useRef(0);
+  const targetCamPos = useRef(new THREE.Vector3());
+  const startCamPos = useRef(new THREE.Vector3());
+
+  useEffect(() => {
+    if (zoomToFitTrigger === 0) return;
+
+    // Compute bounding box of selected object, or all objects
+    const box = new THREE.Box3();
+    const sel = Array.from(selectedIds);
+    let count = 0;
+
+    objects.forEach((obj) => {
+      if ((sel.length === 0 || sel.includes(obj.id)) && obj.visible && obj.geometry) {
+        if (!obj.geometry.boundingBox) obj.geometry.computeBoundingBox();
+        if (obj.geometry.boundingBox) {
+          const meshBox = obj.geometry.boundingBox.clone();
+          const meshMatrix = new THREE.Matrix4().compose(
+            new THREE.Vector3(...obj.position),
+            new THREE.Quaternion().setFromEuler(new THREE.Euler(...obj.rotation)),
+            new THREE.Vector3(...obj.scale)
+          );
+          meshBox.applyMatrix4(meshMatrix);
+          box.union(meshBox);
+          count++;
+        }
+      }
+    });
+
+    if (count === 0 || box.isEmpty()) {
+      box.set(new THREE.Vector3(-50, -50, -50), new THREE.Vector3(50, 50, 50));
+    }
+
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = (camera as THREE.PerspectiveCamera).fov * (Math.PI / 180);
+    let cameraDistance = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+    cameraDistance = Math.max(80, Math.min(cameraDistance, 1200));
+
+    // Direction vector from center to current camera
+    const dir = camera.position.clone().sub(center).normalize();
+    if (dir.lengthSq() < 0.001) dir.set(1, 0.8, 1).normalize();
+
+    startCamPos.current.copy(camera.position);
+    targetCamPos.current.copy(center).add(dir.multiplyScalar(cameraDistance));
+
+    fitProgress.current = 0;
+    isFitting.current = true;
+  }, [zoomToFitTrigger]);
+
+  useFrame((_, delta) => {
+    if (!isFitting.current) return;
+
+    fitProgress.current = Math.min(1, fitProgress.current + delta * 3.5);
+    const t = 1 - Math.pow(1 - fitProgress.current, 3);
+
+    camera.position.lerpVectors(startCamPos.current, targetCamPos.current, t);
+    camera.updateProjectionMatrix();
+
+    if (fitProgress.current >= 1) {
+      isFitting.current = false;
+    }
+  });
+
+  return null;
+}
+
+/* ── WebGL Context Loss & Restoration Guardian ────────────── */
+
+function WebGLContextGuardian() {
+  const { gl } = useThree();
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    if (!canvas) return;
+
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      console.warn('[Ossilith WebGL] Context lost. Preventing default and waiting for restoration...');
+    };
+
+    const handleContextRestored = () => {
+      console.info('[Ossilith WebGL] Context restored successfully! Re-rendering scene...');
+      gl.renderLists.dispose();
+    };
+
+    canvas.addEventListener('webglcontextlost', handleContextLost, false);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
+
+    return () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    };
+  }, [gl]);
+
+  return null;
+}
+
 /* ── Axis Indicator ────────────────────────────────────── */
 
 function AxisIndicator() {
@@ -570,6 +680,7 @@ function SceneContent({ caseId }: { caseId: string }) {
     commitMeasurement,
     connectorPoints,
     setConnectorPoints,
+    touchGestureMode,
   } = useEditorStore();
 
   const selectedList = Array.from(selectedIds);
@@ -631,14 +742,28 @@ function SceneContent({ caseId }: { caseId: string }) {
 
   return (
     <>
-      <ambientLight intensity={0.5} color="#f0f0e8" />
+      <WebGLContextGuardian />
+      <ambientLight intensity={0.55} color="#f0f0e8" />
       <hemisphereLight args={['#e8f0e8', '#d0c8b8', 0.6]} />
       <directionalLight position={[80, 120, 100]} intensity={1.2} castShadow color="#fff" />
       <directionalLight position={[-60, 80, -80]} intensity={0.5} color="#e8f0ff" />
       <directionalLight position={[0, -50, 60]} intensity={0.25} color="#ffe8d0" />
 
-      <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
+      {/* Touch-Optimized OrbitControls with 1-Finger Mode Switching */}
+      <OrbitControls
+        makeDefault
+        enableDamping
+        dampingFactor={0.06}
+        rotateSpeed={0.75}
+        panSpeed={0.8}
+        zoomSpeed={0.9}
+        touches={{
+          ONE: touchGestureMode === 'pan' ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE,
+          TWO: THREE.TOUCH.DOLLY_PAN,
+        }}
+      />
       <CameraController />
+      <ZoomToFitController />
 
       <ContactShadows
         position={[0, -80, 0]}
@@ -720,16 +845,29 @@ export default function EditorViewport({ caseId }: EditorViewportProps) {
         height: '100%',
         position: 'relative',
         background: 'linear-gradient(180deg, #e8ede8 0%, #dde4dd 40%, #d0d8d0 100%)',
+        touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
       }}
     >
       <Canvas
         shadows
-        camera={{ position: [120, 80, 160], fov: 40 }}
+        dpr={[1, Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.75)]}
+        camera={{ position: [120, 80, 160], fov: 40, near: 0.5, far: 10000 }}
         onPointerMissed={() => deselectAll()}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+        gl={{
+          antialias: true,
+          powerPreference: 'high-performance',
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.1,
+        }}
       >
         <SceneContent caseId={caseId} />
       </Canvas>
+
+      {/* Mobile & Tablet CAD Touch Navigation Dock */}
+      <TouchNavigationHUD />
     </div>
   );
 }
+

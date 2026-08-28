@@ -169,6 +169,12 @@ interface EditorStore {
   undoStack: EditOperation[];
   redoStack: EditOperation[];
 
+  // Touch & Mobile Viewport Navigation
+  touchGestureMode: 'rotate' | 'pan';
+  setTouchGestureMode: (mode: 'rotate' | 'pan') => void;
+  zoomToFitTrigger: number;
+  triggerZoomToFit: () => void;
+
   // Actions — objects
   addObject: (obj: STLObject) => void;
   removeObject: (id: string) => void;
@@ -236,6 +242,7 @@ interface EditorStore {
   canRedo: () => boolean;
 }
 
+
 const DEFAULT_TKR_STATE: TKRPlanningState = {
   active: false,
   isLocked: true, // Locked in current release
@@ -291,10 +298,18 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   // TKR Planning
   tkrState: DEFAULT_TKR_STATE,
 
+  // Touch & Mobile Viewport Navigation
+  touchGestureMode: 'rotate',
+  setTouchGestureMode: (mode) => set({ touchGestureMode: mode }),
+  zoomToFitTrigger: 0,
+  triggerZoomToFit: () => set((state) => ({ zoomToFitTrigger: state.zoomToFitTrigger + 1 })),
+
+
   measurements: [],
   measurementDraftPoints: [],
   undoStack: [],
   redoStack: [],
+
 
   // ── Objects ───────────────────────────────────────────
 
