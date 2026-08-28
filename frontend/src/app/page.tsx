@@ -913,22 +913,74 @@ export default function HomePage() {
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--color-border-mist)' }}>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => router.push(`/cases/${c.id}/editor`)}
-                      style={{ flex: 1, fontSize: 11 }}
-                    >
-                      Open 3D Planning <ArrowRight size={12} />
-                    </button>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => router.push(`/cases/${c.id}/segment`)}
-                      style={{ fontSize: 11 }}
-                      title="Open nnInteractive 2D/3D Segmenter"
-                    >
-                      AI Segment
-                    </button>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--color-border-mist)', flexWrap: 'wrap' }}>
+                    {(!c.status || c.status === 'created' || c.status === 'importing' || c.status === 'imported') ? (
+                      <>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => router.push(`/cases/${c.id}/import`)}
+                          style={{ flex: 1, fontSize: 11, gap: 4 }}
+                        >
+                          <span>Stage 1: Import DICOM</span>
+                          <ArrowRight size={12} />
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => router.push(`/cases/${c.id}/segment`)}
+                          style={{ fontSize: 11 }}
+                          title="Open AI Segmentation"
+                        >
+                          AI Segment
+                        </button>
+                      </>
+                    ) : (c.status === 'ready' || c.status === 'segmenting') ? (
+                      <>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => router.push(`/cases/${c.id}/segment`)}
+                          style={{ flex: 1, fontSize: 11, gap: 4, backgroundColor: '#059669', borderColor: '#059669' }}
+                        >
+                          <Sparkles size={12} />
+                          <span>Stage 3: AI Segment</span>
+                          <ArrowRight size={12} />
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => router.push(`/cases/${c.id}/import`)}
+                          style={{ fontSize: 11 }}
+                          title="Re-inspect DICOM series"
+                        >
+                          DICOM
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => router.push(`/cases/${c.id}/editor`)}
+                          style={{ fontSize: 11 }}
+                          title="Open 3D Planning"
+                        >
+                          3D CAD
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => router.push(`/cases/${c.id}/editor`)}
+                          style={{ flex: 1, fontSize: 11, gap: 4 }}
+                        >
+                          <span>Stage 4: 3D Planning</span>
+                          <ArrowRight size={12} />
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => router.push(`/cases/${c.id}/segment`)}
+                          style={{ fontSize: 11 }}
+                          title="Review Segmentation"
+                        >
+                          Segment
+                        </button>
+                      </>
+                    )}
                     <button
                       className="btn btn-ghost btn-sm"
                       onClick={() => deleteCase(c.id)}

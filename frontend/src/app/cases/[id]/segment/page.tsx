@@ -109,7 +109,7 @@ const WINDOW_PRESETS: { id: WindowPreset; label: string; ww: number | null; wl: 
   { id: 'custom', label: 'Custom W/L', ww: 1000, wl: 200 },
 ];
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000');
 
 /* ── Image Preload Pool Cache ──────────────────────────── */
 const _preloadImgCache = new Map<string, HTMLImageElement>();
@@ -1002,10 +1002,12 @@ export default function SegmentPage() {
   };
 
   const [isVolumeLoading, setIsVolumeLoading] = useState<boolean>(true);
+  const [volumeNotFound, setVolumeNotFound] = useState<boolean>(false);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
     let cancelled = false;
+    let retries = 0;
 
     const fetchMetadata = async () => {
       try {
@@ -1015,6 +1017,7 @@ export default function SegmentPage() {
           if (data && data.dimensions && !cancelled) {
             setMetadata(data);
             setIsVolumeLoading(false);
+            setVolumeNotFound(false);
             const [dimX, dimY, dimZ] = data.dimensions;
             setMaxSagittal(dimX || 100);
             setMaxCoronal(dimY || 100);
@@ -1025,12 +1028,28 @@ export default function SegmentPage() {
             setAxialSlice((prev) => (prev > 0 ? prev : Math.floor((dimZ || 100) / 2)));
             return;
           }
+        } else if (res.status === 400 || res.status === 404) {
+          retries++;
+          if (retries >= 2) {
+            if (!cancelled) {
+              setIsVolumeLoading(false);
+              setVolumeNotFound(true);
+            }
+            return;
+          }
         }
       } catch (err) {
-        // Retry
+        retries++;
+        if (retries >= 3) {
+          if (!cancelled) {
+            setIsVolumeLoading(false);
+            setVolumeNotFound(true);
+          }
+          return;
+        }
       }
 
-      if (!cancelled) {
+      if (!cancelled && retries < 3) {
         timer = setTimeout(fetchMetadata, 1500);
       }
     };
@@ -2222,7 +2241,70 @@ export default function SegmentPage() {
         </aside>
 
         {/* Viewport Grid Container */}
-        {isVolumeLoading ? (
+        {volumeNotFound ? (
+          <main
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'var(--color-cream-paper)',
+              padding: 24,
+            }}
+          >
+            <div
+              className="animate-fade-in-scale"
+              style={{
+                maxWidth: 480,
+                width: '100%',
+                backgroundColor: '#fff',
+                padding: 32,
+                borderRadius: 16,
+                border: '1px solid var(--color-border-mist)',
+                boxShadow: '0 8px 30px rgba(15,62,23,0.06)',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 16,
+              }}
+            >
+              <div
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 14,
+                  backgroundColor: 'var(--color-keylime-wash)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid var(--color-border-mist)',
+                }}
+              >
+                <Grid2X2 size={24} color="var(--color-forest-ink)" />
+              </div>
+
+              <div>
+                <h3 style={{ margin: '0 0 6px', fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-forest-ink)' }}>
+                  No Reconstructed CT Volume Found
+                </h3>
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--color-charcoal-muted)', lineHeight: 1.5 }}>
+                  This patient case has not had a DICOM series uploaded and reconstructed into 3D voxel space yet (Stages 1 & 2).
+                </p>
+              </div>
+
+              <button
+                onClick={() => router.push(`/cases/${caseId}/import`)}
+                className="btn btn-primary"
+                style={{ padding: '8px 20px', fontSize: 13, gap: 6 }}
+              >
+                <span>Go to Stage 1: DICOM Import</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </main>
+        ) : isVolumeLoading ? (
           <main
             style={{
               flex: 1,
