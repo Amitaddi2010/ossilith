@@ -38,34 +38,29 @@ import {
 import { useCaseStore } from '@/stores/caseStore';
 import { getHealth, type HealthResponse } from '@/lib/api';
 
-/* ── Interactive 3D Hero Bone Canvas ────────────────────── */
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 
-function HeroInteractiveBone({ renderMode }: { renderMode: 'solid' | 'wireframe' | 'xray' }) {
+/* ── Interactive 3D Hero Foot Canvas (Foot.stl) ────────── */
+
+function HeroInteractiveFoot({ renderMode }: { renderMode: 'solid' | 'wireframe' | 'xray' }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
 
-  // Generate realistic bone femur model geometry
-  const geometry = React.useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(0, -35);
-    shape.bezierCurveTo(14, -30, 20, -18, 14, -5);
-    shape.bezierCurveTo(9, 6, 8, 20, 16, 32);
-    shape.bezierCurveTo(22, 42, 10, 48, 0, 42);
-    shape.bezierCurveTo(-10, 48, -22, 42, -16, 32);
-    shape.bezierCurveTo(-8, 20, -9, 6, -14, -5);
-    shape.bezierCurveTo(-20, -18, -14, -30, 0, -35);
-
-    const extrudeSettings = {
-      depth: 18,
-      bevelEnabled: true,
-      bevelSegments: 6,
-      steps: 4,
-      bevelSize: 4,
-      bevelThickness: 4,
-    };
-    const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    geo.center();
-    geo.computeVertexNormals();
-    return geo;
+  useEffect(() => {
+    const loader = new STLLoader();
+    loader.load(
+      '/models/Foot.stl',
+      (geo) => {
+        geo.computeVertexNormals();
+        geo.center();
+        geo.computeBoundingSphere();
+        setGeometry(geo);
+      },
+      undefined,
+      (err) => {
+        console.warn('Could not load Foot.stl, using fallback', err);
+      }
+    );
   }, []);
 
   useFrame((_, delta) => {
@@ -74,15 +69,35 @@ function HeroInteractiveBone({ renderMode }: { renderMode: 'solid' | 'wireframe'
     }
   });
 
+  if (!geometry) {
+    return (
+      <mesh>
+        <boxGeometry args={[15, 15, 15]} />
+        <meshStandardMaterial color="#cbd5e1" wireframe />
+      </mesh>
+    );
+  }
+
+  // Scale Foot.stl dynamically so it is 100% visible inside the viewport
+  const radius = geometry.boundingSphere?.radius || 100;
+  const targetScale = 38 / radius;
+
   return (
-    <Float speed={2} rotationIntensity={0.3} floatIntensity={0.5}>
-      <mesh ref={meshRef} geometry={geometry} scale={[1.4, 1.4, 1.4]} castShadow receiveShadow>
+    <Float speed={2} rotationIntensity={0.2} floatIntensity={0.3}>
+      <mesh
+        ref={meshRef}
+        geometry={geometry}
+        scale={[targetScale, targetScale, targetScale]}
+        rotation={[-Math.PI / 2 + 0.35, 0, -0.3]}
+        castShadow
+        receiveShadow
+      >
         {renderMode === 'solid' && (
           <meshPhysicalMaterial
             color="#e6dfd1"
-            roughness={0.45}
-            metalness={0.05}
-            clearcoat={0.2}
+            roughness={0.42}
+            metalness={0.06}
+            clearcoat={0.25}
             clearcoatRoughness={0.3}
             side={THREE.DoubleSide}
           />
@@ -94,7 +109,7 @@ function HeroInteractiveBone({ renderMode }: { renderMode: 'solid' | 'wireframe'
           <meshPhysicalMaterial
             color="#38bdf8"
             transparent
-            opacity={0.38}
+            opacity={0.42}
             roughness={0.1}
             metalness={0.2}
             transmission={0.85}
@@ -106,6 +121,7 @@ function HeroInteractiveBone({ renderMode }: { renderMode: 'solid' | 'wireframe'
     </Float>
   );
 }
+
 
 /* ── Service indicator ──────────────────────────────────── */
 
@@ -322,8 +338,8 @@ export default function HomePage() {
                 <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-forest-ink)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   LIVE INTERACTIVE 3D PREVIEW
                 </span>
-                <div style={{ fontSize: 12, color: 'var(--color-muted)', fontWeight: 500 }}>
-                  Femoral Condyle Anatomy (Drag to rotate)
+                <div style={{ fontSize: 12, color: 'var(--color-forest-ink)', fontWeight: 600 }}>
+                  Patient Foot & Ankle Anatomy (Foot.stl)
                 </div>
               </div>
 
@@ -353,11 +369,11 @@ export default function HomePage() {
 
             {/* Embedded 3D Canvas */}
             <div style={{ width: '100%', height: 260, position: 'relative', touchAction: 'none' }}>
-              <Canvas camera={{ position: [0, 0, 95], fov: 45 }}>
-                <ambientLight intensity={0.7} />
-                <directionalLight position={[10, 20, 15]} intensity={1.4} />
-                <directionalLight position={[-10, -10, -10]} intensity={0.4} color="#38bdf8" />
-                <HeroInteractiveBone renderMode={heroRenderMode} />
+              <Canvas camera={{ position: [45, 30, 60], fov: 45, near: 0.1, far: 1000 }}>
+                <ambientLight intensity={0.75} />
+                <directionalLight position={[20, 30, 25]} intensity={1.4} />
+                <directionalLight position={[-20, -10, -20]} intensity={0.5} color="#38bdf8" />
+                <HeroInteractiveFoot renderMode={heroRenderMode} />
                 <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={1.0} />
               </Canvas>
             </div>
@@ -379,8 +395,9 @@ export default function HomePage() {
               <div style={{ display: 'flex', gap: 16 }}>
                 <div>
                   <span style={{ fontSize: 9.5, color: 'var(--color-muted)', display: 'block' }}>FACES</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-forest-ink)' }}>48,920</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-forest-ink)' }}>64,792</span>
                 </div>
+
                 <div>
                   <span style={{ fontSize: 9.5, color: 'var(--color-muted)', display: 'block' }}>PRINT QC</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>✓ ASTM F3001</span>

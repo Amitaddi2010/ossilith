@@ -190,26 +190,52 @@ export default function StandaloneEditorPage() {
   const activeObj = selectedList.length > 0 ? objects.get(selectedList[0]) || null : null;
   const objectList = Array.from(objects.values());
 
-  // Load initial demo anatomy if empty
+  // Load initial Foot.stl anatomy if empty
   useEffect(() => {
     if (objects.size === 0) {
-      const demoGeo = createSampleKneeGeometry();
-      const demoId = `femur_demo_${Date.now().toString(36)}`;
-      addObject({
-        id: demoId,
-        name: 'Distal Femoral Bone (Sample)',
-        geometry: demoGeo,
-        position: [0, 0, 0],
-        rotation: [0, 0, 0],
-        scale: [1, 1, 1],
-        color: '#e8dcc8',
-        opacity: 1.0,
-        visible: true,
-        anatomicalType: 'femur',
-      });
-      selectObject(demoId);
+      const loader = new STLLoader();
+      loader.load(
+        '/models/Foot.stl',
+        (geo) => {
+          geo.computeVertexNormals();
+          geo.center();
+          const demoId = `foot_demo_${Date.now().toString(36)}`;
+          addObject({
+            id: demoId,
+            name: 'Patient Foot & Ankle (Foot.stl)',
+            geometry: geo,
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            color: '#e8dcc8',
+            opacity: 1.0,
+            visible: true,
+            anatomicalType: 'femur',
+          });
+          selectObject(demoId);
+        },
+        undefined,
+        () => {
+          const demoGeo = createSampleKneeGeometry();
+          const demoId = `femur_demo_${Date.now().toString(36)}`;
+          addObject({
+            id: demoId,
+            name: 'Anatomical Bone (Sample)',
+            geometry: demoGeo,
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            color: '#e8dcc8',
+            opacity: 1.0,
+            visible: true,
+            anatomicalType: 'femur',
+          });
+          selectObject(demoId);
+        }
+      );
     }
   }, [objects.size, addObject, selectObject]);
+
 
   // Real-time Breach Detection evaluation
   useEffect(() => {
