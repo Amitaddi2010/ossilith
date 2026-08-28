@@ -47,6 +47,7 @@ dependencies = [
 
     # Sync DB driver (for Celery workers)
     "psycopg2-binary>=2.9.0",
+    "nibabel>=5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -57,8 +58,9 @@ dev = [
     "ruff>=0.5.0",
 ]
 local-gpu = [
-    # Full nnInteractive package for local GPU mode
+    # Full nnInteractive and TotalSegmentator packages for local GPU / inference mode
     "nnInteractive>=1.0.0",
+    "TotalSegmentator>=2.0.0",
 ]
 
 [tool.ruff]

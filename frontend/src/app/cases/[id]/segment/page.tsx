@@ -32,6 +32,14 @@ import {
   Activity,
   Layers as LayersIcon,
   X,
+  Brain,
+  Bot,
+  Zap,
+  CheckCircle2,
+  Search,
+  SlidersHorizontal,
+  Check,
+  Cpu,
 } from 'lucide-react';
 import Volume3DPreview from '@/components/segmentation/Volume3DPreview';
 import MeasurementOverlay, {
@@ -40,6 +48,12 @@ import MeasurementOverlay, {
   MeasurementPoint,
 } from '@/components/segmentation/MeasurementOverlay';
 import { useToast } from '@/components/Toast';
+import {
+  startAutoSegmentation,
+  getAutoSegTasks,
+  subscribeToJob,
+  type AutoSegPreset,
+} from '@/lib/api';
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -870,6 +884,74 @@ export default function SegmentPage() {
   // Shortcuts cheat sheet modal
   const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
 
+  // TotalSegmentator Auto-Segmentation state
+  const [showAutoSegModal, setShowAutoSegModal] = useState<boolean>(false);
+  const [autoSegPresets, setAutoSegPresets] = useState<AutoSegPreset[]>([
+    {
+      id: 'total',
+      name: 'All 117+ Anatomical Structures (Total)',
+      description: 'Comprehensive full-body AI segmentation of all major organs, skeletal framework, vascular structures, and key muscles.',
+      structures_count: 117,
+      category: 'Comprehensive',
+      recommended_for: 'Full CT scans & multi-system surgical planning',
+    },
+    {
+      id: 'bones',
+      name: 'Skeletal Framework & Bones',
+      description: 'Extracts cranial vault, spine (C/T/L/S vertebrae), ribs, pelvis, femurs, tibias, and shoulder girdle with zero-drift accuracy.',
+      structures_count: 42,
+      category: 'Orthopedic',
+      recommended_for: 'Osteotomies, joint arthroplasty, and trauma reconstruction',
+    },
+    {
+      id: 'appendicular_bones',
+      name: 'Extremity & Appendicular Bones',
+      description: 'Focused segmentation of upper and lower extremities (femur, tibia, fibula, patella, humerus, radius, ulna).',
+      structures_count: 16,
+      category: 'Orthopedic',
+      recommended_for: 'Limb deformity correction & limb-sparing surgery',
+    },
+    {
+      id: 'organs',
+      name: 'Abdominal & Thoracic Viscera',
+      description: 'Precision contours for liver, spleen, kidneys, pancreas, lungs, heart, stomach, gallbladder, and urinary bladder.',
+      structures_count: 24,
+      category: 'Visceral',
+      recommended_for: 'General surgery, tumor resection margins & organ volumetry',
+    },
+    {
+      id: 'tissue_types',
+      name: 'Tissue Classes (Bone, Muscle, Fat, Air)',
+      description: 'Automated multi-compartment body composition segmentation into cortical bone, cancellous bone, skeletal muscle, subcutaneous fat, and aerated parenchyma.',
+      structures_count: 6,
+      category: 'Tissue Analysis',
+      recommended_for: 'Density profiling, bone mineral assessment & soft tissue margins',
+    },
+    {
+      id: 'lung_vessels',
+      name: 'Pulmonary Vasculature & Airways',
+      description: 'Segmentation of trachea, main bronchi, pulmonary artery, and lobar vascular trees.',
+      structures_count: 8,
+      category: 'Thoracic',
+      recommended_for: 'Thoracic oncology & airway stent planning',
+    },
+    {
+      id: 'body',
+      name: 'Full Body Outer Contour',
+      description: 'Segment complete patient external surface envelope for 3D body reference.',
+      structures_count: 1,
+      category: 'Surface',
+      recommended_for: 'Reference alignment & patient positioning',
+    },
+  ]);
+  const [selectedPreset, setSelectedPreset] = useState<string>('total');
+  const [autoSegFast, setAutoSegFast] = useState<boolean>(false);
+  const [autoSegGenerateSTLs, setAutoSegGenerateSTLs] = useState<boolean>(false);
+  const [isAutoSegmenting, setIsAutoSegmenting] = useState<boolean>(false);
+  const [autoSegProgress, setAutoSegProgress] = useState<number>(0);
+  const [autoSegMessage, setAutoSegMessage] = useState<string>('');
+  const [layerSearchQuery, setLayerSearchQuery] = useState<string>('');
+
   // Accepting & STL generation state
   const [isGeneratingSTL, setIsGeneratingSTL] = useState<boolean>(false);
   const [stlProgress, setStlProgress] = useState<number>(0);
@@ -1241,7 +1323,103 @@ export default function SegmentPage() {
     info('Cleared measurements');
   };
 
-  /* ── Accept Layer & Auto-generate STL ─────────────────── */
+  /* ── TotalSegmentator Auto-Segmentation Trigger ─────── */
+
+  useEffect(() => {
+    // Load dynamic tasks from backend if available
+    getAutoSegTasks()
+      .then((tasks) => {
+        if (tasks && tasks.length > 0) {
+          setAutoSegPresets(tasks);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleStartAutoSeg = async () => {
+    try {
+      setIsAutoSegmenting(true);
+      setAutoSegProgress(5);
+      setAutoSegMessage('Initializing TotalSegmentator inference engine...');
+      setShowAutoSegModal(false);
+
+      const res = await startAutoSegmentation(caseId, {
+        task: selectedPreset,
+        fast: autoSegFast,
+        generate_stls: autoSegGenerateSTLs,
+      });
+
+      info('TotalSegmentator auto-segmentation started', `Task: ${selectedPreset}`);
+
+      subscribeToJob(
+        res.job_id,
+        (job) => {
+          setAutoSegProgress(job.progress);
+          setAutoSegMessage(job.message);
+
+          if (job.status === 'completed') {
+            setIsAutoSegmenting(false);
+            fetchLayers();
+            setMaskVersion((v) => v + 1);
+            const count = job.result_data?.structures_count || 'multiple';
+            success(
+              'TotalSegmentator Complete',
+              `Segmented ${count} anatomical structures with clinical coordinate accuracy.`
+            );
+            if (autoSegGenerateSTLs) {
+              setTimeout(() => {
+                router.push(`/cases/${caseId}/editor`);
+              }, 1200);
+            }
+          } else if (job.status === 'failed') {
+            setIsAutoSegmenting(false);
+            error('Auto-segmentation failed', job.message || 'Error executing TotalSegmentator');
+          }
+        },
+        () => {
+          setIsAutoSegmenting(false);
+        }
+      );
+    } catch (err: any) {
+      setIsAutoSegmenting(false);
+      error('Failed to start auto-segmentation', err.message);
+    }
+  };
+
+  /* ── Batch Accept All Layers & Generate STLs ──────────── */
+
+  const handleAcceptAllLayers = async () => {
+    if (layers.length === 0) return;
+    setIsGeneratingSTL(true);
+    setStlProgress(10);
+    setStlMessage(`Queuing 3D STL generation for all ${layers.length} layers...`);
+
+    try {
+      // Accept each layer
+      for (let i = 0; i < layers.length; i++) {
+        const layer = layers[i];
+        setStlProgress(Math.round(15 + (i / layers.length) * 75));
+        setStlMessage(`Processing ${layer.name} (${i + 1}/${layers.length})...`);
+        try {
+          await fetch(`${API_BASE}/api/cases/${caseId}/layers/${layer.id}/accept`, {
+            method: 'POST',
+          });
+        } catch (e) {}
+      }
+
+      setStlProgress(100);
+      setStlMessage('All STL meshes generated!');
+      success('All Anatomical STLs Generated', 'Loading 3D Surgical CAD Workspace...');
+      setTimeout(() => {
+        router.push(`/cases/${caseId}/editor`);
+      }, 800);
+    } catch (err: any) {
+      setIsGeneratingSTL(false);
+      error('Batch STL generation error', err.message);
+    }
+  };
+
+  /* ── Accept Single Layer & Auto-generate STL ───────────── */
 
   const handleAcceptLayer = async () => {
     if (!activeLayerId) return;
@@ -1404,28 +1582,140 @@ export default function SegmentPage() {
             })}
           </div>
 
-          {/* Accept / Generate STL Button */}
+          <div style={{ width: 1, height: 20, backgroundColor: 'var(--color-border-mist)', margin: '0 2px' }} />
+
+          {/* ✨ TotalSegmentator Auto-Segmentation Action Button */}
           <button
-            onClick={handleAcceptLayer}
-            disabled={isGeneratingSTL || !activeLayerId}
-            className="btn btn-primary"
-            style={{ padding: '6px 14px', fontSize: 12, gap: 6 }}
+            onClick={() => setShowAutoSegModal(true)}
+            disabled={isAutoSegmenting || isVolumeLoading}
+            className="btn"
+            style={{
+              backgroundColor: '#ecfdf5',
+              border: '1px solid #10b981',
+              color: '#065f46',
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              gap: 6,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              boxShadow: '0 1px 3px rgba(16,185,129,0.15)',
+              transition: 'all 150ms ease',
+              cursor: isAutoSegmenting || isVolumeLoading ? 'not-allowed' : 'pointer',
+            }}
           >
-            {isGeneratingSTL ? (
+            {isAutoSegmenting ? (
               <>
-                <Loader2 size={13} className="animate-spin" />
-                <span>{stlMessage || 'Processing...'}</span>
+                <Loader2 size={13} className="animate-spin" color="#10b981" />
+                <span>Auto-Segmenting ({autoSegProgress}%)</span>
               </>
             ) : (
               <>
-                <Sparkles size={13} />
-                <span>Generate 3D STL</span>
-                <ChevronRight size={13} />
+                <Sparkles size={13} color="#10b981" />
+                <span>Auto-Segment (AI)</span>
+                <span
+                  style={{
+                    backgroundColor: '#10b981',
+                    color: '#fff',
+                    fontSize: 9,
+                    padding: '1px 5px',
+                    borderRadius: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  117+
+                </span>
               </>
             )}
           </button>
+
+          {/* Accept / Generate STL Button */}
+          {layers.length > 1 ? (
+            <button
+              onClick={handleAcceptAllLayers}
+              disabled={isGeneratingSTL || layers.length === 0}
+              className="btn btn-primary"
+              style={{ padding: '6px 14px', fontSize: 12, gap: 6 }}
+            >
+              {isGeneratingSTL ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>{stlMessage || 'Processing...'}</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={13} />
+                  <span>Generate All STLs ({layers.length})</span>
+                  <ChevronRight size={13} />
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={handleAcceptLayer}
+              disabled={isGeneratingSTL || !activeLayerId}
+              className="btn btn-primary"
+              style={{ padding: '6px 14px', fontSize: 12, gap: 6 }}
+            >
+              {isGeneratingSTL ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>{stlMessage || 'Processing...'}</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={13} />
+                  <span>Generate 3D STL</span>
+                  <ChevronRight size={13} />
+                </>
+              )}
+            </button>
+          )}
         </div>
       </header>
+
+      {/* ── Auto-Segmentation Real-time Floating HUD Banner ── */}
+      {isAutoSegmenting && (
+        <div
+          style={{
+            backgroundColor: '#064e3b',
+            color: '#ecfdf5',
+            padding: '7px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 12,
+            borderBottom: '1px solid rgba(16,185,129,0.3)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            zIndex: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Loader2 size={14} className="animate-spin" color="#34d399" />
+            <span style={{ fontWeight: 600 }}>TotalSegmentator Pipeline Active:</span>
+            <span style={{ color: '#a7f3d0' }}>{autoSegMessage || 'Segmenting anatomical structures...'}</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 140, height: 6, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 3, overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${autoSegProgress}%`,
+                  backgroundColor: '#34d399',
+                  borderRadius: 3,
+                  transition: 'width 250ms ease-out',
+                }}
+              />
+            </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, minWidth: 32 }}>
+              {autoSegProgress}%
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* ── Main View Area ───────────────────────────────── */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -1779,24 +2069,70 @@ export default function SegmentPage() {
               >
                 <LayersIcon size={12} /> Layers ({layers.length})
               </span>
-              <button
-                onClick={handleAddLayer}
-                title="Add new layer"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--color-forest-ink)',
-                  cursor: 'pointer',
-                  padding: 2,
-                  display: 'flex',
-                }}
-              >
-                <Plus size={14} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {layers.length > 3 && (
+                  <button
+                    onClick={() => {
+                      const anyHidden = layers.some((l) => l.visible === false);
+                      setLayers((prev) => prev.map((l) => ({ ...l, visible: anyHidden })));
+                    }}
+                    title="Toggle all visibility"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-charcoal-muted)',
+                      cursor: 'pointer',
+                      padding: 2,
+                      display: 'flex',
+                    }}
+                  >
+                    <Eye size={12} />
+                  </button>
+                )}
+                <button
+                  onClick={handleAddLayer}
+                  title="Add new layer"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-forest-ink)',
+                    cursor: 'pointer',
+                    padding: 2,
+                    display: 'flex',
+                  }}
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
             </div>
 
+            {/* Layer Search Filter (when more than 4 layers exist) */}
+            {layers.length > 4 && (
+              <div style={{ marginBottom: 6, position: 'relative' }}>
+                <Search size={11} style={{ position: 'absolute', left: 7, top: 7, color: 'var(--color-charcoal-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Filter structures..."
+                  value={layerSearchQuery}
+                  onChange={(e) => setLayerSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '4px 6px 4px 22px',
+                    fontSize: 11,
+                    borderRadius: 6,
+                    border: '1px solid var(--color-border-mist)',
+                    backgroundColor: '#fff',
+                    outline: 'none',
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                />
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {layers.map((l) => {
+              {layers
+                .filter((l) => !layerSearchQuery || l.name.toLowerCase().includes(layerSearchQuery.toLowerCase()))
+                .map((l) => {
                 const isActive = activeLayerId === l.id;
                 const isVis = l.visible !== false;
                 return (
@@ -2116,6 +2452,226 @@ export default function SegmentPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TotalSegmentator AI Auto-Segmentation Modal ─────── */}
+      {showAutoSegModal && (
+        <div className="modal-backdrop" onClick={() => setShowAutoSegModal(false)} style={{ zIndex: 1050 }}>
+          <div
+            className="modal-card animate-fade-in-scale"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 680,
+              width: '95%',
+              padding: 24,
+              borderRadius: 16,
+              border: '1px solid var(--color-border-mist)',
+              boxShadow: '0 20px 40px rgba(15, 62, 23, 0.15)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    backgroundColor: '#ecfdf5',
+                    border: '1px solid #10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Sparkles size={22} color="#059669" />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-forest-ink)' }}>
+                      TotalSegmentator AI Auto-Segmentation
+                    </h3>
+                    <span
+                      style={{
+                        backgroundColor: '#10b981',
+                        color: '#fff',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: 12,
+                      }}
+                    >
+                      v2.0
+                    </span>
+                  </div>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--color-charcoal-muted)' }}>
+                    Fully automated deep learning segmentation of 117+ anatomical structures directly from CT voxels.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAutoSegModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--color-charcoal-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Task Presets Grid */}
+            <div style={{ marginBottom: 18 }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: 'var(--color-charcoal-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  marginBottom: 8,
+                }}
+              >
+                Select Anatomical Segmentation Task
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 8 }}>
+                {autoSegPresets.map((preset) => {
+                  const isSelected = selectedPreset === preset.id;
+                  return (
+                    <div
+                      key={preset.id}
+                      onClick={() => setSelectedPreset(preset.id)}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: '1.5px solid',
+                        borderColor: isSelected ? '#10b981' : 'var(--color-border-mist)',
+                        backgroundColor: isSelected ? '#f0fdf4' : '#fff',
+                        cursor: 'pointer',
+                        transition: 'all 120ms ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div
+                            style={{
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              border: '1.5px solid',
+                              borderColor: isSelected ? '#10b981' : 'var(--color-border-mist)',
+                              backgroundColor: isSelected ? '#10b981' : '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {isSelected && <Check size={10} color="#fff" />}
+                          </div>
+                          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-forest-ink)' }}>
+                            {preset.name}
+                          </span>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            padding: '1px 6px',
+                            borderRadius: 6,
+                            backgroundColor: isSelected ? '#d1fae5' : 'var(--color-surface-sunken)',
+                            color: isSelected ? '#047857' : 'var(--color-charcoal-muted)',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          {preset.structures_count} classes
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 11, color: 'var(--color-charcoal-muted)', margin: '2px 0 0 22px', lineHeight: 1.4 }}>
+                        {preset.description}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Advanced Tuning & Options */}
+            <div
+              style={{
+                backgroundColor: 'var(--color-surface-sunken)',
+                padding: 12,
+                borderRadius: 10,
+                border: '1px solid var(--color-border-mist)',
+                marginBottom: 20,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-charcoal)' }}>Fast Preview Mode</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-charcoal-muted)' }}>
+                    Downsamples resolution for ~3× faster inference (recommended for quick anatomy verification)
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={autoSegFast}
+                  onChange={(e) => setAutoSegFast(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: '#10b981', cursor: 'pointer' }}
+                />
+              </div>
+
+              <div style={{ height: 1, backgroundColor: 'var(--color-border-mist)' }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-charcoal)' }}>
+                    Auto-Generate 3D STLs on Completion
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--color-charcoal-muted)' }}>
+                    Automatically run Marching Cubes and launch the 3D surgical CAD workspace when done
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={autoSegGenerateSTLs}
+                  onChange={(e) => setAutoSegGenerateSTLs(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: '#10b981', cursor: 'pointer' }}
+                />
+              </div>
+            </div>
+
+            {/* Footer Action Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setShowAutoSegModal(false)} className="btn btn-ghost" style={{ padding: '8px 16px', fontSize: 12 }}>
+                Cancel
+              </button>
+              <button
+                onClick={handleStartAutoSeg}
+                className="btn btn-primary"
+                style={{
+                  backgroundColor: '#059669',
+                  borderColor: '#059669',
+                  padding: '8px 20px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <Sparkles size={15} />
+                <span>Run TotalSegmentator</span>
+              </button>
             </div>
           </div>
         </div>

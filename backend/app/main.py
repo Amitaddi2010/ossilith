@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine
 from app.models import Base
-from app.routers import cases, health, import_, volume, segmentation, stl
+from app.routers import cases, health, import_, volume, segmentation, stl, autoseg
 
 
 @asynccontextmanager
@@ -49,6 +49,7 @@ app.include_router(import_.router)
 app.include_router(volume.router)
 app.include_router(segmentation.router)
 app.include_router(stl.router)
+app.include_router(autoseg.router)
 
 
 @app.get("/")

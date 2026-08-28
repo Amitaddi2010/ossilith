@@ -85,11 +85,72 @@ export async function deleteCase(id: string): Promise<void> {
   return apiFetch<void>(`/api/cases/${id}`, { method: 'DELETE' });
 }
 
+// ── Auto-Segmentation (TotalSegmentator) ─────────────────
+
+export interface AutoSegPreset {
+  id: string;
+  name: string;
+  description: string;
+  structures_count: number;
+  category: string;
+  recommended_for: string;
+}
+
+export interface AutoSegRequest {
+  task?: string;
+  fast?: boolean;
+  generate_stls?: boolean;
+}
+
+export interface AutoSegResponse {
+  job_id: string;
+  status: string;
+  message: string;
+  case_id: string;
+  series_id: string;
+  task: string;
+  fast: boolean;
+}
+
+export interface AutoSegStatusResponse {
+  has_job: boolean;
+  job_id?: string;
+  status: string;
+  progress?: number;
+  message?: string;
+  error?: string | null;
+  result_data?: any;
+  created_at?: string | null;
+  completed_at?: string | null;
+}
+
+export async function getAutoSegTasks(): Promise<AutoSegPreset[]> {
+  return apiFetch<AutoSegPreset[]>('/api/cases/autoseg/tasks');
+}
+
+export async function startAutoSegmentation(
+  caseId: string,
+  data: AutoSegRequest = {}
+): Promise<AutoSegResponse> {
+  return apiFetch<AutoSegResponse>(`/api/cases/${caseId}/autoseg`, {
+    method: 'POST',
+    body: JSON.stringify({
+      task: data.task || 'total',
+      fast: data.fast ?? false,
+      generate_stls: data.generate_stls ?? false,
+    }),
+  });
+}
+
+export async function getAutoSegStatus(caseId: string): Promise<AutoSegStatusResponse> {
+  return apiFetch<AutoSegStatusResponse>(`/api/cases/${caseId}/autoseg/status`);
+}
+
 // ── SSE helper for job streaming ──────────────────────────
 
 export function subscribeToJob(
   jobId: string,
-  onMessage: (data: { progress: number; message: string; status: string }) => void,
+  onMessage: (data: { progress: number; message: string; status: string; result_data?: any }) => void,
   onError?: (err: Event) => void
 ): EventSource {
   const es = new EventSource(`${API_BASE}/api/jobs/${jobId}/stream`);
@@ -106,3 +167,4 @@ export function subscribeToJob(
   };
   return es;
 }
+

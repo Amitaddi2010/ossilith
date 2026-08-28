@@ -33,6 +33,7 @@ class CaseStatus(str, PyEnum):
     RECONSTRUCTING = "reconstructing"
     READY = "ready"
     SEGMENTING = "segmenting"
+    AUTO_SEGMENTING = "auto_segmenting"
     GENERATING_STL = "generating_stl"
     COMPLETE = "complete"
     ERROR = "error"
@@ -41,6 +42,7 @@ class CaseStatus(str, PyEnum):
 class JobType(str, PyEnum):
     VOLUME_RECONSTRUCTION = "volume_reconstruction"
     STL_GENERATION = "stl_generation"
+    AUTO_SEGMENTATION = "auto_segmentation"
 
 
 class JobStatus(str, PyEnum):

@@ -62,6 +62,7 @@ services:
     command: celery -A app.celery_app:celery worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-2}
     volumes:
       - ossilith-data:/data
+      - totalsegmentator-models:/root/.totalsegmentator
     environment:
       - DATABASE_URL=sqlite+aiosqlite:////data/ossilith.db
       - DATA_DIR=/data/cases
@@ -130,6 +131,8 @@ volumes:
     name: ossilith_redis_data
   nninteractive-models:
     name: ossilith_nninteractive_models
+  totalsegmentator-models:
+    name: ossilith_totalsegmentator_models
 
 # ── Isolated Internal Network ────────────────────────────────
 networks:
