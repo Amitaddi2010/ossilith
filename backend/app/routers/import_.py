@@ -71,13 +71,25 @@ async def upload_dicom(
 
     # Read uploaded files into memory
     file_data: list[tuple[str, bytes]] = []
-    for f in files:
-        content = await f.read()
-        file_data.append((f.filename or "unknown.dcm", content))
+    try:
+        for f in files:
+            content = await f.read()
+            if len(content) > 0:
+                file_data.append((f.filename or "unknown.dcm", content))
+    except Exception as read_err:
+        logger.exception(f"Failed to read upload stream for case {case_id}: {read_err}")
+        raise HTTPException(status_code=400, detail=f"Failed to read uploaded files: {str(read_err)}")
+
+    if not file_data:
+        raise HTTPException(status_code=400, detail="No files received in upload payload")
 
     # Extract and parse
-    dicom_dir = extract_upload(case_dir, file_data)
-    series_map, global_errors = parse_and_group_series(dicom_dir)
+    try:
+        dicom_dir = extract_upload(case_dir, file_data)
+        series_map, global_errors = parse_and_group_series(dicom_dir)
+    except Exception as parse_err:
+        logger.exception(f"DICOM parsing error for case {case_id}: {parse_err}")
+        raise HTTPException(status_code=422, detail=f"DICOM parsing or ZIP extraction error: {str(parse_err)}")
 
     if not series_map:
         raise HTTPException(
