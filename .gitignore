@@ -43,5 +43,7 @@ docker-compose.override.yml
 *.log
 *.zip
 *.tar.gz
+bin/
 celerybeat-schedule
+
 

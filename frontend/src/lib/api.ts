@@ -2,7 +2,11 @@
  * Ossilith API client — typed fetch wrappers for all backend endpoints.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE =
+  typeof window !== 'undefined'
+    ? ''
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
+
 
 // ── Types ─────────────────────────────────────────────────
 
