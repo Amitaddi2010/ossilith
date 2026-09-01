@@ -192,6 +192,61 @@ async def get_volume_metadata(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/api/cases/{case_id}/volume/histogram")
+async def get_volume_histogram(
+    case_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Compute and return the HU density histogram for interactive contrast tuning."""
+    case_id_str = str(case_id)
+    volume_path = _case_volume_path_cache.get(case_id_str)
+    if not volume_path:
+        result = await db.execute(
+            select(Series)
+            .where(Series.case_id == case_id)
+            .where(Series.volume_path.isnot(None))
+            .order_by(Series.is_selected.desc())
+        )
+        series = result.scalars().first()
+        if not series or not series.volume_path:
+            raise HTTPException(status_code=404, detail="Volume not ready")
+        volume_path = series.volume_path
+        _case_volume_path_cache[case_id_str] = volume_path
+
+    try:
+        cached = _get_cached_volume(volume_path)
+        if "histogram" not in cached:
+            arr = cached["arr"]
+            # Downsample for fast computation if very large
+            sample = arr[::2, ::2, ::2] if arr.size > 2_000_000 else arr
+            min_bound = -1024.0
+            max_bound = 3071.0
+            bins = 256
+            counts, bin_edges = np.histogram(sample, bins=bins, range=(min_bound, max_bound))
+            bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+            # Normalize counts for clean rendering (using square root scaling for visual clarity of bone peaks)
+            scaled_counts = np.sqrt(counts.astype(np.float32))
+            max_c = float(np.max(scaled_counts)) if np.max(scaled_counts) > 0 else 1.0
+            normalized = (scaled_counts / max_c).tolist()
+
+            cached["histogram"] = {
+                "min_bound": min_bound,
+                "max_bound": max_bound,
+                "bins": [round(float(x) * 100, 1) for x in normalized],
+                "counts": normalized,
+                "bin_centers": [round(float(x), 1) for x in bin_centers],
+                "raw_counts": counts.tolist(),
+                "data_min": float(np.min(sample)),
+                "data_max": float(np.max(sample)),
+            }
+
+        return cached["histogram"]
+
+    except Exception as e:
+        logger.exception(f"Error computing histogram for case {case_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 _case_volume_path_cache: dict[str, str] = {}
 
 
@@ -202,11 +257,13 @@ async def get_volume_slice(
     index: int,
     ww: Optional[float] = Query(None, description="Window Width (HU)"),
     wl: Optional[float] = Query(None, description="Window Level / Center (HU)"),
+    min_hu: Optional[float] = Query(None, description="Grayscale Min HU"),
+    max_hu: Optional[float] = Query(None, description="Grayscale Max HU"),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Serve a 2D slice from the reconstructed volume as PNG with correct anatomical orientation.
-    Supports optional CT windowing via ?ww=&wl= query params.
+    Supports optional CT windowing via ?ww=&wl= or ?min_hu=&max_hu= query params.
     Presets: Bone (WW=2000, WL=400), Soft Tissue (WW=400, WL=50), Lung (WW=1500, WL=-600)
     """
     case_id_str = str(case_id)
@@ -231,7 +288,7 @@ async def get_volume_slice(
         axis_lower = axis.lower()
 
         # Build cache key
-        cache_key = f"{volume_path}|{axis_lower}|{index}|{ww}|{wl}"
+        cache_key = f"{volume_path}|{axis_lower}|{index}|{ww}|{wl}|{min_hu}|{max_hu}"
         if cache_key in _slice_png_cache:
             _slice_png_cache.move_to_end(cache_key)
             png_bytes = _slice_png_cache[cache_key]
@@ -256,8 +313,12 @@ async def get_volume_slice(
         else:
             raise HTTPException(status_code=400, detail="Axis must be axial, coronal, or sagittal")
 
-        # Apply windowing
-        if ww is not None and wl is not None and ww > 0:
+        # Apply windowing / Min-Max contrast
+        if min_hu is not None and max_hu is not None and max_hu > min_hu:
+            low = float(min_hu)
+            high = float(max_hu)
+            norm = np.clip((slice_data.astype(np.float32) - low) / (high - low) * 255.0, 0, 255).astype(np.uint8)
+        elif ww is not None and wl is not None and ww > 0:
             low = wl - ww / 2.0
             high = wl + ww / 2.0
             norm = np.clip((slice_data.astype(np.float32) - low) / (high - low) * 255.0, 0, 255).astype(np.uint8)
@@ -271,7 +332,6 @@ async def get_volume_slice(
         pil_img.save(buf, format="PNG", compress_level=1)
         png_bytes = buf.getvalue()
 
-
         _cache_slice_png(cache_key, png_bytes)
 
         return Response(
@@ -282,6 +342,7 @@ async def get_volume_slice(
                 "Cache-Control": "public, max-age=60",
             },
         )
+
     except Exception as e:
         logger.exception(f"Error serving volume slice {axis}/{index}: {e}")
         raise HTTPException(status_code=500, detail=str(e))

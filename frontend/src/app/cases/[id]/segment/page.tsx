@@ -45,6 +45,7 @@ import {
   Scissors,
 } from 'lucide-react';
 import Volume3DPreview from '@/components/segmentation/Volume3DPreview';
+import ContrastHistogramPanel, { GrayscalePreset, GRAYSCALE_PRESETS } from '@/components/segmentation/ContrastHistogramPanel';
 import MeasurementOverlay, {
   RulerMeasurement,
   AngleMeasurement,
@@ -159,6 +160,9 @@ interface SliceViewportProps {
   onFocusView: (axis: ViewMode) => void;
   ww: number | null;
   wl: number | null;
+  minHu?: number | null;
+  maxHu?: number | null;
+  scalePresetLabel?: string;
   crosshair: CrosshairVoxel | null;
   setCrosshair: (vox: CrosshairVoxel | null) => void;
   showCrosshairs: boolean;
@@ -191,6 +195,9 @@ function SliceViewport({
   onFocusView,
   ww,
   wl,
+  minHu,
+  maxHu,
+  scalePresetLabel,
   crosshair,
   setCrosshair,
   showCrosshairs,
@@ -210,8 +217,12 @@ function SliceViewport({
   const panStartRef = useRef<{ x: number; y: number; panX: number; panY: number }>({ x: 0, y: 0, panX: 0, panY: 0 });
   const [imgLoaded, setImgLoaded] = useState<boolean>(false);
 
-  // Windowing params
-  const windowQuery = ww !== null && wl !== null ? `?ww=${ww}&wl=${wl}` : '';
+  // Windowing & Grayscale params
+  const windowQuery = minHu !== undefined && minHu !== null && maxHu !== undefined && maxHu !== null
+    ? `?min_hu=${minHu}&max_hu=${maxHu}`
+    : ww !== null && wl !== null
+      ? `?ww=${ww}&wl=${wl}`
+      : '';
   const sliceUrl = `${API_BASE}/api/cases/${caseId}/volume/slice/${axis}/${currentSlice}${windowQuery}`;
   
   const activeLayer = layers.find((l) => l.id === activeLayerId);
@@ -221,6 +232,12 @@ function SliceViewport({
   const maskUrl = activeLayerId && isLayerVisible
     ? `${API_BASE}/api/cases/${caseId}/layers/${activeLayerId}/mask/slice/${axis}/${currentSlice}?v=${maskVersion}`
     : null;
+
+  // Real-time MM position coordinate calculation
+  const spacingVal = axis === 'axial' ? (metadata?.spacing[0] ?? 1.0) : axis === 'coronal' ? (metadata?.spacing[1] ?? 1.0) : (metadata?.spacing[2] ?? 1.0);
+  const originVal = axis === 'axial' ? (metadata?.origin[2] ?? -105.875) : axis === 'coronal' ? (metadata?.origin[1] ?? 145.8986) : (metadata?.origin[0] ?? 150.0001);
+  const sliceMmCoord = (currentSlice * spacingVal + originVal).toFixed(4);
+
 
   // Preload neighboring slices (±3) for zero-latency scrubbing
   useEffect(() => {
@@ -564,6 +581,47 @@ function SliceViewport({
           overflow: 'hidden',
         }}
       >
+        {/* Top-Left Window Preset & Orientation Badge */}
+        <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 1, pointerEvents: 'none' }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#38bdf8', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            {scalePresetLabel || (axis === 'coronal' || axis === 'axial' ? 'SOFT WITH MAR' : 'BONE SCALE')}
+          </span>
+          <span style={{ fontSize: 9.5, color: '#93c5fd', textTransform: 'capitalize' }}>
+            {axis} ▾
+          </span>
+        </div>
+
+        {/* Anatomical Orientation Labels */}
+        {axis === 'coronal' && (
+          <>
+            <span style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', color: '#38bdf8', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>T</span>
+            <span style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', color: '#fb923c', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>B</span>
+            <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', color: '#fb923c', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>R</span>
+            <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', color: '#fb923c', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>L</span>
+          </>
+        )}
+        {axis === 'axial' && (
+          <>
+            <span style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', color: '#ef4444', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>A</span>
+            <span style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', color: '#ef4444', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>P</span>
+            <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', color: '#fb923c', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>R</span>
+            <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', color: '#ef4444', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>L</span>
+          </>
+        )}
+        {axis === 'sagittal' && (
+          <>
+            <span style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', color: '#38bdf8', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>T</span>
+            <span style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', color: '#fb923c', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>B</span>
+            <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', color: '#34d399', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>P</span>
+            <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', color: '#34d399', fontWeight: 700, fontSize: 13, zIndex: 10, pointerEvents: 'none' }}>A</span>
+          </>
+        )}
+
+        {/* Bottom-Right Millimeter Coordinate Readout */}
+        <div style={{ position: 'absolute', bottom: 6, right: 8, zIndex: 10, fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: axis === 'axial' ? '#ef4444' : '#fb923c', pointerEvents: 'none' }}>
+          {sliceMmCoord}
+        </div>
+
         {/* Shimmer skeleton while image loads */}
         {!imgLoaded && (
           <div
@@ -575,6 +633,7 @@ function SliceViewport({
             }}
           />
         )}
+
 
         {/* Scaled / Panned Image Layer */}
         <div
@@ -886,10 +945,22 @@ export default function SegmentPage() {
   const [maxCoronal, setMaxCoronal] = useState<number>(100);
   const [maxSagittal, setMaxSagittal] = useState<number>(100);
 
-  // Windowing state
+  // Windowing & Contrast Histogram state
   const [windowPreset, setWindowPreset] = useState<WindowPreset>('bone');
   const [windowWidth, setWindowWidth] = useState<number | null>(2000);
   const [windowLevel, setWindowLevel] = useState<number | null>(400);
+  const [contrastMinHu, setContrastMinHu] = useState<number>(-1024);
+  const [contrastMaxHu, setContrastMaxHu] = useState<number>(2200);
+  const [grayscalePreset, setGrayscalePreset] = useState<GrayscalePreset>('wide');
+
+  const handleMinMaxContrastChange = (min: number, max: number, presetId?: GrayscalePreset) => {
+    setContrastMinHu(min);
+    setContrastMaxHu(max);
+    if (presetId) {
+      setGrayscalePreset(presetId);
+    }
+  };
+
 
   // Synchronized Crosshair Voxel
   const [crosshair, setCrosshair] = useState<CrosshairVoxel | null>(null);
@@ -3040,142 +3111,164 @@ export default function SegmentPage() {
             </span>
           </main>
         ) : (
-          <main
-            style={{
-              flex: 1,
-              padding: 8,
-              backgroundColor: '#0a0d0a',
-              display: 'grid',
-              gap: 6,
-              gridTemplateColumns:
-                viewMode === 'quad' ? 'repeat(2, minmax(0, 1fr))' : '1fr',
-              gridTemplateRows:
-                viewMode === 'quad' ? 'repeat(2, minmax(0, 1fr))' : '1fr',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Quad or Single Axial View */}
-            {(viewMode === 'quad' || viewMode === 'axial') && (
-              <SliceViewport
-                caseId={caseId}
-                axis="axial"
-                title="Axial (Z)"
-                currentSlice={axialSlice}
-                setSlice={setAxialSlice}
-                maxVal={maxAxial}
-                activeLayerId={activeLayerId}
-                layers={layers}
-                maskVersion={maskVersion}
-                activeTool={activeTool}
-                includeMode={includeMode}
-                isPrompting={isPrompting}
-                clickMarkers={clickMarkers}
-                bboxStart={bboxStart}
-                bboxCurrent={bboxCurrent}
-                onMouseDown={handleViewportMouseDown}
-                onMouseMove={handleViewportMouseMove}
-                onMouseUp={handleViewportMouseUp}
-                onFocusView={setViewMode}
-                ww={windowWidth}
-                wl={windowLevel}
-                crosshair={crosshair}
-                setCrosshair={setCrosshair}
-                showCrosshairs={showCrosshairs}
-                metadata={metadata}
-                rulers={rulers}
-                angles={angles}
-                currentRulerDraft={currentRulerDraft}
-                currentAngleDraft={currentAngleDraft}
-              />
-            )}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
+            <main
+              style={{
+                flex: 1,
+                padding: 8,
+                backgroundColor: '#0a0d0a',
+                display: 'grid',
+                gap: 6,
+                gridTemplateColumns:
+                  viewMode === 'quad' ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+                gridTemplateRows:
+                  viewMode === 'quad' ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Quad or Single Axial View */}
+              {(viewMode === 'quad' || viewMode === 'axial') && (
+                <SliceViewport
+                  caseId={caseId}
+                  axis="axial"
+                  title="Axial (Z)"
+                  currentSlice={axialSlice}
+                  setSlice={setAxialSlice}
+                  maxVal={maxAxial}
+                  activeLayerId={activeLayerId}
+                  layers={layers}
+                  maskVersion={maskVersion}
+                  activeTool={activeTool}
+                  includeMode={includeMode}
+                  isPrompting={isPrompting}
+                  clickMarkers={clickMarkers}
+                  bboxStart={bboxStart}
+                  bboxCurrent={bboxCurrent}
+                  onMouseDown={handleViewportMouseDown}
+                  onMouseMove={handleViewportMouseMove}
+                  onMouseUp={handleViewportMouseUp}
+                  onFocusView={setViewMode}
+                  ww={windowWidth}
+                  wl={windowLevel}
+                  minHu={contrastMinHu}
+                  maxHu={contrastMaxHu}
+                  scalePresetLabel={GRAYSCALE_PRESETS.find((p) => p.id === grayscalePreset)?.label}
+                  crosshair={crosshair}
+                  setCrosshair={setCrosshair}
+                  showCrosshairs={showCrosshairs}
+                  metadata={metadata}
+                  rulers={rulers}
+                  angles={angles}
+                  currentRulerDraft={currentRulerDraft}
+                  currentAngleDraft={currentAngleDraft}
+                />
+              )}
 
-            {/* Quad or Single Coronal View */}
-            {(viewMode === 'quad' || viewMode === 'coronal') && (
-              <SliceViewport
-                caseId={caseId}
-                axis="coronal"
-                title="Coronal (Y)"
-                currentSlice={coronalSlice}
-                setSlice={setCoronalSlice}
-                maxVal={maxCoronal}
-                activeLayerId={activeLayerId}
-                layers={layers}
-                maskVersion={maskVersion}
-                activeTool={activeTool}
-                includeMode={includeMode}
-                isPrompting={isPrompting}
-                clickMarkers={clickMarkers}
-                bboxStart={bboxStart}
-                bboxCurrent={bboxCurrent}
-                onMouseDown={handleViewportMouseDown}
-                onMouseMove={handleViewportMouseMove}
-                onMouseUp={handleViewportMouseUp}
-                onFocusView={setViewMode}
-                ww={windowWidth}
-                wl={windowLevel}
-                crosshair={crosshair}
-                setCrosshair={setCrosshair}
-                showCrosshairs={showCrosshairs}
-                metadata={metadata}
-                rulers={rulers}
-                angles={angles}
-                currentRulerDraft={currentRulerDraft}
-                currentAngleDraft={currentAngleDraft}
-              />
-            )}
+              {/* Quad or Single Coronal View */}
+              {(viewMode === 'quad' || viewMode === 'coronal') && (
+                <SliceViewport
+                  caseId={caseId}
+                  axis="coronal"
+                  title="Coronal (Y)"
+                  currentSlice={coronalSlice}
+                  setSlice={setCoronalSlice}
+                  maxVal={maxCoronal}
+                  activeLayerId={activeLayerId}
+                  layers={layers}
+                  maskVersion={maskVersion}
+                  activeTool={activeTool}
+                  includeMode={includeMode}
+                  isPrompting={isPrompting}
+                  clickMarkers={clickMarkers}
+                  bboxStart={bboxStart}
+                  bboxCurrent={bboxCurrent}
+                  onMouseDown={handleViewportMouseDown}
+                  onMouseMove={handleViewportMouseMove}
+                  onMouseUp={handleViewportMouseUp}
+                  onFocusView={setViewMode}
+                  ww={windowWidth}
+                  wl={windowLevel}
+                  minHu={contrastMinHu}
+                  maxHu={contrastMaxHu}
+                  scalePresetLabel={GRAYSCALE_PRESETS.find((p) => p.id === grayscalePreset)?.label}
+                  crosshair={crosshair}
+                  setCrosshair={setCrosshair}
+                  showCrosshairs={showCrosshairs}
+                  metadata={metadata}
+                  rulers={rulers}
+                  angles={angles}
+                  currentRulerDraft={currentRulerDraft}
+                  currentAngleDraft={currentAngleDraft}
+                />
+              )}
 
-            {/* Quad or Single Sagittal View */}
-            {(viewMode === 'quad' || viewMode === 'sagittal') && (
-              <SliceViewport
-                caseId={caseId}
-                axis="sagittal"
-                title="Sagittal (X)"
-                currentSlice={sagittalSlice}
-                setSlice={setSagittalSlice}
-                maxVal={maxSagittal}
-                activeLayerId={activeLayerId}
-                layers={layers}
-                maskVersion={maskVersion}
-                activeTool={activeTool}
-                includeMode={includeMode}
-                isPrompting={isPrompting}
-                clickMarkers={clickMarkers}
-                bboxStart={bboxStart}
-                bboxCurrent={bboxCurrent}
-                onMouseDown={handleViewportMouseDown}
-                onMouseMove={handleViewportMouseMove}
-                onMouseUp={handleViewportMouseUp}
-                onFocusView={setViewMode}
-                ww={windowWidth}
-                wl={windowLevel}
-                crosshair={crosshair}
-                setCrosshair={setCrosshair}
-                showCrosshairs={showCrosshairs}
-                metadata={metadata}
-                rulers={rulers}
-                angles={angles}
-                currentRulerDraft={currentRulerDraft}
-                currentAngleDraft={currentAngleDraft}
-              />
-            )}
+              {/* Quad or Single Sagittal View */}
+              {(viewMode === 'quad' || viewMode === 'sagittal') && (
+                <SliceViewport
+                  caseId={caseId}
+                  axis="sagittal"
+                  title="Sagittal (X)"
+                  currentSlice={sagittalSlice}
+                  setSlice={setSagittalSlice}
+                  maxVal={maxSagittal}
+                  activeLayerId={activeLayerId}
+                  layers={layers}
+                  maskVersion={maskVersion}
+                  activeTool={activeTool}
+                  includeMode={includeMode}
+                  isPrompting={isPrompting}
+                  clickMarkers={clickMarkers}
+                  bboxStart={bboxStart}
+                  bboxCurrent={bboxCurrent}
+                  onMouseDown={handleViewportMouseDown}
+                  onMouseMove={handleViewportMouseMove}
+                  onMouseUp={handleViewportMouseUp}
+                  onFocusView={setViewMode}
+                  ww={windowWidth}
+                  wl={windowLevel}
+                  minHu={contrastMinHu}
+                  maxHu={contrastMaxHu}
+                  scalePresetLabel={GRAYSCALE_PRESETS.find((p) => p.id === grayscalePreset)?.label}
+                  crosshair={crosshair}
+                  setCrosshair={setCrosshair}
+                  showCrosshairs={showCrosshairs}
+                  metadata={metadata}
+                  rulers={rulers}
+                  angles={angles}
+                  currentRulerDraft={currentRulerDraft}
+                  currentAngleDraft={currentAngleDraft}
+                />
+              )}
 
-            {/* Quad or Single 3D Generation View */}
-            {(viewMode === 'quad' || viewMode === '3d') && (
-              <div
-                className="seg-viewport-dark"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  height: '100%',
-                  overflow: 'hidden',
-                }}
-              >
-                <Volume3DPreview caseId={caseId} refreshKey={maskVersion} layerId={activeLayerId} />
-              </div>
-            )}
-          </main>
+              {/* Quad or Single 3D Generation View */}
+              {(viewMode === 'quad' || viewMode === '3d') && (
+                <div
+                  className="seg-viewport-dark"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Volume3DPreview caseId={caseId} refreshKey={maskVersion} layerId={activeLayerId} />
+                </div>
+              )}
+            </main>
+
+            {/* ── Bottom Interactive Contrast, Grayscale Min/Max, & Volume Rendering Tray ── */}
+            <ContrastHistogramPanel
+              caseId={caseId}
+              minHu={contrastMinHu}
+              maxHu={contrastMaxHu}
+              onMinMaxChange={handleMinMaxContrastChange}
+              activePreset={grayscalePreset}
+              onPresetChange={setGrayscalePreset}
+            />
+          </div>
         )}
       </div>
+
 
       {/* ── Keyboard Shortcuts Cheat Sheet Modal ──────────── */}
       {showShortcutsModal && (
