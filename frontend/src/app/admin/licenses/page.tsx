@@ -42,15 +42,21 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+const AUTHORIZED_ADMIN_EMAILS = [
+  'amit.addi2010@gmail.com',
+];
+
 export default function AdminLicensePage() {
   const router = useRouter();
 
   // ── Firebase Auth State ──
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [emailInput, setEmailInput] = useState('');
+  const [emailInput, setEmailInput] = useState('amit.addi2010@gmail.com');
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
 
   // ── License Management State ──
   const [licenses, setLicenses] = useState<AdminLicenseRecord[]>([]);
@@ -86,17 +92,31 @@ export default function AdminLicensePage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (currentUser && currentUser.email) {
+        const authorized = AUTHORIZED_ADMIN_EMAILS.some(
+          (adminEmail) => adminEmail.toLowerCase() === currentUser.email?.toLowerCase()
+        );
+        setIsAuthorized(authorized);
+        if (!authorized) {
+          setAuthError(`Access Restricted: Account "${currentUser.email}" is not authorized.`);
+        } else {
+          setAuthError(null);
+        }
+      } else {
+        setIsAuthorized(false);
+      }
       setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Load licenses when authenticated
+  // Load licenses when authenticated & authorized
   useEffect(() => {
-    if (user) {
+    if (user && isAuthorized) {
       loadData();
     }
-  }, [user]);
+  }, [user, isAuthorized]);
+
 
   const loadData = async () => {
     setIsLoading(true);
@@ -206,7 +226,8 @@ export default function AdminLicensePage() {
     );
   }
 
-  if (!user) {
+  if (!user || !isAuthorized) {
+
     return (
       <div
         style={{
