@@ -1,7 +1,13 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const http = require('http');
+
+// Prevent main process dialog crashes on non-fatal backend warnings
+process.on('uncaughtException', (err) => {
+  console.warn('[Main Process Warning]:', err.message || err);
+});
 
 let mainWindow = null;
 let splashWindow = null;
@@ -34,12 +40,12 @@ function updateSplashStatus(message) {
 }
 
 function checkBackendHealth(retries = 30, delay = 800) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     let attempts = 0;
 
     const interval = setInterval(() => {
       attempts++;
-      updateSplashStatus(`Starting local AI engine (Attempt ${attempts}/${retries})...`);
+      updateSplashStatus(`Connecting to local AI engine (Attempt ${attempts}/${retries})...`);
 
       const req = http.get(`http://127.0.0.1:${BACKEND_PORT}/api/health`, (res) => {
         if (res.statusCode === 200) {
@@ -75,34 +81,43 @@ function startBackend() {
 
     const backendDir = path.join(__dirname, '..', 'backend');
 
-    try {
-      backendProcess = spawn(
-        venvPython,
-        ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', String(BACKEND_PORT)],
-        { cwd: backendDir, env: { ...process.env, PYTHONUNBUFFERED: '1' } }
-      );
+    if (fs.existsSync(venvPython)) {
+      try {
+        backendProcess = spawn(
+          venvPython,
+          ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', String(BACKEND_PORT)],
+          { cwd: backendDir, env: { ...process.env, PYTHONUNBUFFERED: '1' } }
+        );
 
-      backendProcess.stdout?.on('data', (data) => console.log(`[Backend]: ${data}`));
-      backendProcess.stderr?.on('data', (data) => console.error(`[Backend Err]: ${data}`));
-    } catch (err) {
-      console.warn('Backend spawn error in dev mode (may already be running):', err);
+        backendProcess.on('error', (err) => console.warn('[Backend Spawn Info]:', err.message));
+        backendProcess.stdout?.on('data', (data) => console.log(`[Backend]: ${data}`));
+        backendProcess.stderr?.on('data', (data) => console.error(`[Backend Err]: ${data}`));
+      } catch (err) {
+        console.warn('Backend spawn error in dev mode (may already be running):', err);
+      }
     }
   } else {
     // In production bundled package, run the compiled binary in extraResources
     const binaryName = process.platform === 'win32' ? 'ossilith-backend.exe' : 'ossilith-backend';
     const binaryPath = path.join(process.resourcesPath, 'backend', binaryName);
 
-    try {
-      backendProcess = spawn(binaryPath, [], {
-        env: { ...process.env, PYTHONUNBUFFERED: '1' },
-      });
-      backendProcess.stdout?.on('data', (data) => console.log(`[Backend]: ${data}`));
-      backendProcess.stderr?.on('data', (data) => console.error(`[Backend Err]: ${data}`));
-    } catch (err) {
-      console.error('Failed to spawn bundled backend binary:', err);
+    if (fs.existsSync(binaryPath)) {
+      try {
+        backendProcess = spawn(binaryPath, [], {
+          env: { ...process.env, PYTHONUNBUFFERED: '1' },
+        });
+        backendProcess.on('error', (err) => console.warn('[Bundled Backend Info]:', err.message));
+        backendProcess.stdout?.on('data', (data) => console.log(`[Backend]: ${data}`));
+        backendProcess.stderr?.on('data', (data) => console.error(`[Backend Err]: ${data}`));
+      } catch (err) {
+        console.warn('Failed to spawn bundled backend binary:', err);
+      }
+    } else {
+      console.log(`Standalone binary not bundled at ${binaryPath}. Connecting to running FastAPI service on port ${BACKEND_PORT}...`);
     }
   }
 }
+
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
