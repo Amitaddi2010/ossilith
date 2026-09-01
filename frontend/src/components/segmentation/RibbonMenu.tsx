@@ -129,8 +129,8 @@ export default function RibbonMenu({
     { id: 'view', label: 'View & Windowing', icon: Grid2X2 },
     { id: 'autoseg', label: 'AI Auto-Seg', icon: Sparkles, badge: 'AI' },
     { id: 'measure', label: 'Measurements', icon: Ruler, badge: measurementCount > 0 ? `${measurementCount}` : undefined },
-    { id: 'export', label: '3D Export & Print', icon: Download },
-    { id: 'license', label: 'System & License', icon: ShieldCheck },
+    { id: 'export', label: '3D Export', icon: Download },
+    { id: 'license', label: 'License', icon: ShieldCheck },
   ];
 
   return (
@@ -144,38 +144,44 @@ export default function RibbonMenu({
         zIndex: 30,
         fontFamily: 'var(--font-sans, system-ui, -apple-system, sans-serif)',
         flexShrink: 0,
+        whiteSpace: 'nowrap',
       }}
     >
-      {/* ── Level 1: App Header Bar (36px) ── */}
+      {/* ── Level 1: App Header Bar (38px) ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 12px',
-          height: 36,
+          padding: '0 10px',
+          height: 38,
           backgroundColor: '#faf8f5',
           borderBottom: '1px solid #e8e4db',
+          gap: 8,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
         }}
       >
         {/* Left: Return, Sidebar Toggle, Case Title & Stage */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <button
             onClick={() => router.push('/cases')}
             title="Return to Cases Dashboard"
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: 4,
               backgroundColor: '#fff',
               border: '1px solid #d8d2c4',
               borderRadius: 4,
-              padding: '2px 8px',
+              padding: '0 8px',
               color: '#0f3e17',
               fontSize: 11,
               fontWeight: 600,
               cursor: 'pointer',
-              height: 24,
+              height: 25,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#e1f4df')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#fff')}
@@ -189,18 +195,20 @@ export default function RibbonMenu({
               onClick={onToggleSidebar}
               title={isSidebarOpen ? "Hide CAD Inspector Sidebar" : "Show CAD Inspector Sidebar"}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
                 backgroundColor: isSidebarOpen ? '#e1f4df' : '#fff',
                 border: `1px solid ${isSidebarOpen ? '#10b981' : '#d8d2c4'}`,
                 borderRadius: 4,
-                padding: '2px 7px',
+                padding: '0 8px',
                 color: '#0f3e17',
                 fontSize: 11,
                 fontWeight: 600,
                 cursor: 'pointer',
-                height: 24,
+                height: 25,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               <Sliders size={12} color={isSidebarOpen ? '#0f3e17' : '#6b7c6e'} />
@@ -208,10 +216,18 @@ export default function RibbonMenu({
             </button>
           )}
 
-          <div style={{ height: 14, width: 1, backgroundColor: '#ded8cb' }} />
+          <div style={{ height: 14, width: 1, backgroundColor: '#ded8cb', margin: '0 2px' }} />
 
-
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#0f3e17', letterSpacing: '-0.01em' }}>
+          <span
+            style={{
+              fontSize: 11.5,
+              fontWeight: 700,
+              color: '#0f3e17',
+              letterSpacing: '-0.01em',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
             {caseTitle || `Case #${caseId.slice(0, 8)}`}
           </span>
 
@@ -219,19 +235,31 @@ export default function RibbonMenu({
             style={{
               fontSize: 9,
               padding: '1px 6px',
-              borderRadius: 8,
+              borderRadius: 6,
               backgroundColor: '#e1f4df',
               color: '#0f3e17',
               fontWeight: 700,
               border: '1px solid #b1dbb8',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             Stage 3: CAD
           </span>
         </div>
 
-        {/* Center: Tabs Switcher */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
+        {/* Center: Tabs Switcher (Scrollable horizontally if screen is narrow) */}
+        <nav
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            height: '100%',
+            overflowX: 'auto',
+            flexShrink: 1,
+            scrollbarWidth: 'none',
+          }}
+        >
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -240,12 +268,12 @@ export default function RibbonMenu({
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 5,
-                  padding: '0 12px',
+                  gap: 4,
+                  padding: '0 10px',
                   height: '100%',
-                  fontSize: 11.5,
+                  fontSize: 11,
                   fontWeight: isActive ? 700 : 500,
                   color: isActive ? '#0f3e17' : '#556b5a',
                   backgroundColor: isActive ? '#fff' : 'transparent',
@@ -253,15 +281,17 @@ export default function RibbonMenu({
                   borderBottom: isActive ? '2.5px solid #10b981' : '2.5px solid transparent',
                   cursor: 'pointer',
                   transition: 'all 0.1s ease',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
                 }}
               >
-                <Icon size={13} color={isActive ? '#10b981' : '#6b7c6e'} />
+                <Icon size={12} color={isActive ? '#10b981' : '#6b7c6e'} />
                 <span>{tab.label}</span>
                 {tab.badge && (
                   <span
                     style={{
                       fontSize: 8.5,
-                      padding: '0 5px',
+                      padding: '0 4px',
                       borderRadius: 4,
                       backgroundColor: isActive ? '#10b981' : '#e1f4df',
                       color: isActive ? '#fff' : '#0f3e17',
@@ -277,10 +307,10 @@ export default function RibbonMenu({
         </nav>
 
         {/* Right: Heuristic/Neural Status & Shortcuts */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
           <div
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: 4,
               fontSize: 10,
@@ -290,6 +320,8 @@ export default function RibbonMenu({
               border: `1px solid ${isSimulatedMode ? '#fde68a' : '#a7f3d0'}`,
               color: isSimulatedMode ? '#92400e' : '#065f46',
               fontWeight: 600,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             <span
@@ -298,6 +330,7 @@ export default function RibbonMenu({
                 height: 6,
                 borderRadius: '50%',
                 backgroundColor: isSimulatedMode ? '#d97706' : '#10b981',
+                flexShrink: 0,
               }}
             />
             <span>{isSimulatedMode ? 'Heuristic Mode' : 'GPU Neural'}</span>
@@ -307,17 +340,19 @@ export default function RibbonMenu({
             onClick={onOpenShortcuts}
             title="Keyboard Shortcuts (?)"
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: 3,
               backgroundColor: '#fff',
               border: '1px solid #d8d2c4',
               borderRadius: 4,
-              padding: '2px 6px',
+              padding: '0 6px',
               color: '#0f3e17',
               fontSize: 10.5,
               cursor: 'pointer',
-              height: 24,
+              height: 25,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             <HelpCircle size={12} color="#0f3e17" />
@@ -326,16 +361,17 @@ export default function RibbonMenu({
         </div>
       </div>
 
-      {/* ── Level 2: Precision Toolbar Deck (54px - Generous Non-Overlapping Layout) ── */}
+      {/* ── Level 2: Precision Toolbar Deck (52px) ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'stretch',
-          padding: '4px 8px',
+          padding: '3px 8px',
           backgroundColor: '#fff',
-          height: 54,
+          height: 52,
           overflowX: 'auto',
           gap: 2,
+          scrollbarWidth: 'none',
         }}
       >
         {/* ========================================================= */}
@@ -365,7 +401,7 @@ export default function RibbonMenu({
               <button
                 onClick={() => { if (!includeMode) onToggleIncludeMode(); }}
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
                   padding: '0 8px',
@@ -377,6 +413,7 @@ export default function RibbonMenu({
                   fontWeight: includeMode ? 700 : 500,
                   cursor: 'pointer',
                   height: 28,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <span style={{ fontSize: 13, fontWeight: 900, color: '#10b981' }}>+</span>
@@ -386,7 +423,7 @@ export default function RibbonMenu({
               <button
                 onClick={() => { if (includeMode) onToggleIncludeMode(); }}
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
                   padding: '0 8px',
@@ -398,6 +435,7 @@ export default function RibbonMenu({
                   fontWeight: !includeMode ? 700 : 500,
                   cursor: 'pointer',
                   height: 28,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <span style={{ fontSize: 13, fontWeight: 900, color: '#ef4444' }}>−</span>
@@ -599,7 +637,7 @@ export default function RibbonMenu({
                 onClick={onClearMeasurements}
                 disabled={measurementCount === 0}
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: 5,
                   padding: '0 8px',
@@ -611,6 +649,7 @@ export default function RibbonMenu({
                   cursor: measurementCount > 0 ? 'pointer' : 'default',
                   height: 28,
                   fontWeight: 600,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <span>Clear All ({measurementCount})</span>
@@ -682,7 +721,7 @@ export default function RibbonMenu({
   );
 }
 
-/* ── Clean Toolbar Group (No absolute overlap!) ── */
+/* ── Clean Toolbar Group (Zero Text Overlap, Strictly Controlled Vertical Stacking) ── */
 
 function ToolbarGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -696,6 +735,7 @@ function ToolbarGroup({ label, children }: { label: string; children: React.Reac
         borderRight: '1px solid #e8e4db',
         height: '100%',
         flexShrink: 0,
+        whiteSpace: 'nowrap',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 3, height: 28 }}>
@@ -703,13 +743,14 @@ function ToolbarGroup({ label, children }: { label: string; children: React.Reac
       </div>
       <span
         style={{
-          fontSize: 9,
+          fontSize: 8.5,
           color: '#6b7c6e',
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
           fontWeight: 700,
           lineHeight: 1,
           paddingBottom: 2,
+          whiteSpace: 'nowrap',
         }}
       >
         {label}
@@ -742,9 +783,9 @@ function ToolItem({
       onClick={onClick}
       disabled={disabled}
       style={{
-        display: 'flex',
+        display: 'inline-flex',
         alignItems: 'center',
-        gap: 5,
+        gap: 4,
         padding: '0 8px',
         height: 28,
         borderRadius: 4,
@@ -766,6 +807,7 @@ function ToolItem({
         fontWeight: active ? 700 : 500,
         transition: 'all 0.1s ease',
         whiteSpace: 'nowrap',
+        flexShrink: 0,
         boxShadow: highlight ? '0 1px 3px rgba(16,185,129,0.12)' : 'none',
       }}
       onMouseEnter={(e) => {
@@ -775,8 +817,8 @@ function ToolItem({
         if (!active && !highlight) e.currentTarget.style.backgroundColor = '#fff';
       }}
     >
-      {Icon && <Icon size={13} color={active ? '#0f3e17' : highlight ? '#10b981' : '#556b5a'} />}
-      <span>{label}</span>
+      {Icon && <Icon size={12} color={active ? '#0f3e17' : highlight ? '#10b981' : '#556b5a'} />}
+      <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
       {hotkey && (
         <span
           style={{
@@ -788,6 +830,7 @@ function ToolItem({
             padding: '1px 4px',
             borderRadius: 2,
             marginLeft: 2,
+            whiteSpace: 'nowrap',
           }}
         >
           {hotkey}
