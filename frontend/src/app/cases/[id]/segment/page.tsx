@@ -40,6 +40,9 @@ import {
   SlidersHorizontal,
   Check,
   Cpu,
+  AlertTriangle,
+  Split,
+  Scissors,
 } from 'lucide-react';
 import Volume3DPreview from '@/components/segmentation/Volume3DPreview';
 import MeasurementOverlay, {
@@ -52,12 +55,18 @@ import {
   startAutoSegmentation,
   getAutoSegTasks,
   subscribeToJob,
+  executeRegionGrow,
+  executeIslandFilter,
+  executeThreshold,
+  executeMorphology,
+  splitMask,
   type AutoSegPreset,
+  API_BASE,
 } from '@/lib/api';
 
 /* ── Types ─────────────────────────────────────────────── */
 
-type SegTool = 'point' | 'bbox' | 'pan' | 'scribble' | 'lasso' | 'eraser' | 'ruler' | 'angle';
+type SegTool = 'region_grow' | 'point' | 'island' | 'split_mask' | 'bbox' | 'pan' | 'scribble' | 'lasso' | 'eraser' | 'ruler' | 'angle';
 type ViewMode = 'quad' | 'axial' | 'coronal' | 'sagittal' | '3d';
 type WindowPreset = 'default' | 'bone' | 'soft_tissue' | 'lung' | 'custom';
 
@@ -90,16 +99,20 @@ interface CrosshairVoxel {
   z: number; // 0..dimZ-1
 }
 
-const TOOLS: { id: SegTool; label: string; icon: any; shortcut: string }[] = [
+const TOOLS: { id: SegTool; label: string; icon: any; shortcut: string; badge?: string }[] = [
+  { id: 'region_grow', label: '3D Region Grow (HU)', icon: Zap, shortcut: 'G', badge: 'Bone' },
   { id: 'point', label: 'Point Click (MITK)', icon: Crosshair, shortcut: 'P' },
+  { id: 'island', label: 'Island Filter (Isolate)', icon: LayersIcon, shortcut: 'I' },
+  { id: 'split_mask', label: 'Split Mask (Islands/Plane)', icon: Split, shortcut: 'X', badge: 'New' },
   { id: 'bbox', label: 'Bounding Box', icon: Square, shortcut: 'B' },
+  { id: 'scribble', label: 'Scribble Brush', icon: Pen, shortcut: 'S' },
+  { id: 'lasso', label: 'Lasso Polygon', icon: Lasso, shortcut: 'L' },
+  { id: 'eraser', label: 'Eraser (Background)', icon: Eraser, shortcut: 'E' },
   { id: 'pan', label: 'Pan / Zoom', icon: Hand, shortcut: 'H' },
   { id: 'ruler', label: 'Calibrated Ruler', icon: Ruler, shortcut: 'M' },
   { id: 'angle', label: 'Cobb Angle', icon: Activity, shortcut: 'N' },
-  { id: 'scribble', label: 'Scribble Brush', icon: Pen, shortcut: 'S' },
-  { id: 'lasso', label: 'Lasso Polygon', icon: Lasso, shortcut: 'L' },
-  { id: 'eraser', label: 'Eraser', icon: Eraser, shortcut: 'E' },
 ];
+
 
 const WINDOW_PRESETS: { id: WindowPreset; label: string; ww: number | null; wl: number | null }[] = [
   { id: 'default', label: 'Auto CT', ww: null, wl: null },
@@ -108,8 +121,6 @@ const WINDOW_PRESETS: { id: WindowPreset; label: string; ww: number | null; wl: 
   { id: 'lung', label: 'Lung (W1500/L-600)', ww: 1500, wl: -600 },
   { id: 'custom', label: 'Custom W/L', ww: 1000, wl: 200 },
 ];
-
-const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000');
 
 /* ── Image Preload Pool Cache ──────────────────────────── */
 const _preloadImgCache = new Map<string, HTMLImageElement>();
@@ -260,6 +271,7 @@ function SliceViewport({
   }, [maxVal, setSlice]);
 
   // Keyboard arrow slice stepping
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === ']' || e.key === 'w') {
       e.preventDefault();
@@ -297,6 +309,8 @@ function SliceViewport({
     }
   };
 
+  const crosshairRafRef = useRef<number | null>(null);
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isPanning) {
       const dx = e.clientX - panStartRef.current.x;
@@ -314,31 +328,35 @@ function SliceViewport({
         onMouseMove(pos);
       }
 
-      // Update 3D crosshair position across all viewports
+      // Throttled 3D crosshair update to prevent excessive page-level re-renders
       if (metadata && metadata.dimensions) {
-        const [dimX, dimY, dimZ] = metadata.dimensions;
-        if (axis === 'axial') {
-          setCrosshair({
-            x: Math.round(pos.x * (dimX - 1)),
-            y: Math.round(pos.y * (dimY - 1)),
-            z: currentSlice,
-          });
-        } else if (axis === 'coronal') {
-          setCrosshair({
-            x: Math.round(pos.x * (dimX - 1)),
-            y: currentSlice,
-            z: Math.round((1 - pos.y) * (dimZ - 1)),
-          });
-        } else if (axis === 'sagittal') {
-          setCrosshair({
-            x: currentSlice,
-            y: Math.round(pos.x * (dimY - 1)),
-            z: Math.round((1 - pos.y) * (dimZ - 1)),
-          });
-        }
+        if (crosshairRafRef.current) cancelAnimationFrame(crosshairRafRef.current);
+        crosshairRafRef.current = requestAnimationFrame(() => {
+          const [dimX, dimY, dimZ] = metadata.dimensions;
+          if (axis === 'axial') {
+            setCrosshair({
+              x: Math.round(pos.x * (dimX - 1)),
+              y: Math.round(pos.y * (dimY - 1)),
+              z: currentSlice,
+            });
+          } else if (axis === 'coronal') {
+            setCrosshair({
+              x: Math.round(pos.x * (dimX - 1)),
+              y: currentSlice,
+              z: Math.round((1 - pos.y) * (dimZ - 1)),
+            });
+          } else if (axis === 'sagittal') {
+            setCrosshair({
+              x: currentSlice,
+              y: Math.round(pos.x * (dimY - 1)),
+              z: Math.round((1 - pos.y) * (dimZ - 1)),
+            });
+          }
+        });
       }
     }
   };
+
 
   const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isPanning) {
@@ -529,15 +547,19 @@ function SliceViewport({
           cursor:
             isPanning || activeTool === 'pan'
               ? 'grab'
-              : activeTool === 'point'
-                ? 'crosshair'
-                : activeTool === 'bbox'
-                  ? 'cell'
-                  : activeTool === 'ruler' || activeTool === 'angle'
+              : activeTool === 'region_grow'
+                ? 'cell'
+                : activeTool === 'island'
+                  ? 'pointer'
+                  : activeTool === 'point'
                     ? 'crosshair'
-                    : activeTool === 'eraser'
-                      ? 'not-allowed'
-                      : 'crosshair',
+                    : activeTool === 'bbox'
+                      ? 'cell'
+                      : activeTool === 'ruler' || activeTool === 'angle'
+                        ? 'crosshair'
+                        : activeTool === 'eraser'
+                          ? 'not-allowed'
+                          : 'crosshair',
           userSelect: 'none',
           overflow: 'hidden',
         }}
@@ -600,38 +622,49 @@ function SliceViewport({
               }}
             />
 
-            {/* Mask Overlay */}
-            {maskUrl && imgRef.current && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={maskUrl}
-                src={maskUrl}
-                alt="Mask Overlay"
-                draggable={false}
-                style={{
-                  position: 'absolute',
-                  top: imgRef.current.offsetTop,
-                  left: imgRef.current.offsetLeft,
-                  width: imgRef.current.offsetWidth,
-                  height: imgRef.current.offsetHeight,
-                  objectFit: 'contain',
-                  opacity: layerOpacity,
-                  pointerEvents: 'none',
-                  transition: 'opacity 150ms ease',
-                }}
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-                onLoad={(e) => {
-                  (e.target as HTMLElement).style.display = 'block';
-                }}
-              />
-            )}
+            {/* Multi-Layer Mask Overlays for all visible anatomical structures */}
+            {imgRef.current &&
+              layers
+                .filter((l) => l.visible !== false)
+                .map((l) => {
+                  const isSelected = l.id === activeLayerId;
+                  const layerMaskUrl = `${API_BASE}/api/cases/${caseId}/layers/${l.id}/mask/slice/${axis}/${currentSlice}?v=${maskVersion}`;
+                  const layerOpacity = l.opacity ?? (isSelected ? 0.85 : 0.65);
+                  return (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={l.id}
+                      src={layerMaskUrl}
+                      alt={`Mask ${l.name}`}
+                      draggable={false}
+                      style={{
+                        position: 'absolute',
+                        top: imgRef.current?.offsetTop ?? 0,
+                        left: imgRef.current?.offsetLeft ?? 0,
+                        width: imgRef.current?.offsetWidth ?? '100%',
+                        height: imgRef.current?.offsetHeight ?? '100%',
+                        objectFit: 'contain',
+                        opacity: layerOpacity,
+                        pointerEvents: 'none',
+                        transition: 'opacity 150ms ease',
+                        zIndex: isSelected ? 3 : 2,
+                      }}
+
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                      onLoad={(e) => {
+                        (e.target as HTMLElement).style.display = 'block';
+                      }}
+                    />
+                  );
+                })}
 
             {/* Crosshair synchronized lines */}
             {showCrosshairs && imgRef.current && crosshairLines.xPct !== undefined && crosshairLines.yPct !== undefined && (
               <div
                 style={{
+
                   position: 'absolute',
                   top: imgRef.current.offsetTop,
                   left: imgRef.current.offsetLeft,
@@ -881,27 +914,39 @@ export default function SegmentPage() {
   const [clickMarkers, setClickMarkers] = useState<ClickMarker[]>([]);
   const markerIdRef = useRef(0);
 
+  // Surgical Planning Tool States (Region Grow, Islands, Threshold, Morphology)
+  const [rgMinHU, setRgMinHU] = useState<number>(200);
+  const [rgMaxHU, setRgMaxHU] = useState<number>(3000);
+  const [rgRadius, setRgRadius] = useState<number>(60);
+  const [rgFillHoles, setRgFillHoles] = useState<boolean>(true);
+
+  const [islandMinSize, setIslandMinSize] = useState<number>(500);
+
   // Shortcuts cheat sheet modal
   const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
 
-  // TotalSegmentator Auto-Segmentation state
+  // TotalSegmentator / MONAI Auto-Segmentation state
   const [showAutoSegModal, setShowAutoSegModal] = useState<boolean>(false);
+  const [selectedModelEngine, setSelectedModelEngine] = useState<'totalsegmentator' | 'monai'>('totalsegmentator');
+
   const [autoSegPresets, setAutoSegPresets] = useState<AutoSegPreset[]>([
     {
-      id: 'total',
-      name: 'All 117+ Anatomical Structures (Total)',
-      description: 'Comprehensive full-body AI segmentation of all major organs, skeletal framework, vascular structures, and key muscles.',
-      structures_count: 117,
-      category: 'Comprehensive',
-      recommended_for: 'Full CT scans & multi-system surgical planning',
+      id: 'only_bones',
+      name: 'Only Bones (Complete Unified Skeleton)',
+      description: 'Dedicated orthopedic bone extraction: merges all skeletal structures (skull, spine, ribs, pelvis, extremities) into a single contiguous, solid 3D bone target.',
+      structures_count: 1,
+      category: 'Orthopedic (Recommended)',
+      recommended_for: 'Primary bone segmentation, 3D printing, osteotomy & implant planning',
+      engine: 'TotalSegmentator / Intensity',
     },
     {
       id: 'bones',
-      name: 'Skeletal Framework & Bones',
-      description: 'Extracts cranial vault, spine (C/T/L/S vertebrae), ribs, pelvis, femurs, tibias, and shoulder girdle with zero-drift accuracy.',
+      name: 'Skeletal Framework & Bones (Individual)',
+      description: 'Discrete multi-structure segmentation of spine (C/T/L/S vertebrae), ribs, pelvis, femurs, tibias, and shoulder girdle as separate layers.',
       structures_count: 42,
       category: 'Orthopedic',
-      recommended_for: 'Osteotomies, joint arthroplasty, and trauma reconstruction',
+      recommended_for: 'Osteotomies, joint arthroplasty, and complex trauma reconstruction',
+      engine: 'TotalSegmentator',
     },
     {
       id: 'appendicular_bones',
@@ -910,6 +955,34 @@ export default function SegmentPage() {
       structures_count: 16,
       category: 'Orthopedic',
       recommended_for: 'Limb deformity correction & limb-sparing surgery',
+      engine: 'TotalSegmentator',
+    },
+    {
+      id: 'monai_wholebody',
+      name: 'MONAI WholeBody CT Auto3DSeg',
+      description: 'Deep learning segmentation powered by Project MONAI SwinUNETR / SegResNet whole-body CT architecture (trained on 100+ anatomical targets).',
+      structures_count: 104,
+      category: 'MONAI Deep Learning',
+      recommended_for: 'Comprehensive multi-organ and skeletal contouring with MONAI',
+      engine: 'MONAI 1.6',
+    },
+    {
+      id: 'monai_vista3d',
+      name: 'MONAI VISTA-3D Foundation Model',
+      description: 'NVIDIA & MONAI 3D foundation model for zero-shot and interactive multi-class anatomy segmentation directly from CT voxels.',
+      structures_count: 120,
+      category: 'MONAI Deep Learning',
+      recommended_for: 'Next-generation 3D foundation model anatomy mapping',
+      engine: 'MONAI 1.6',
+    },
+    {
+      id: 'total',
+      name: 'All 117+ Anatomical Structures (Total)',
+      description: 'Comprehensive full-body AI segmentation of all major organs, skeletal framework, vascular structures, and key muscles.',
+      structures_count: 117,
+      category: 'Comprehensive',
+      recommended_for: 'Full CT scans & multi-system surgical planning',
+      engine: 'TotalSegmentator',
     },
     {
       id: 'organs',
@@ -918,6 +991,7 @@ export default function SegmentPage() {
       structures_count: 24,
       category: 'Visceral',
       recommended_for: 'General surgery, tumor resection margins & organ volumetry',
+      engine: 'TotalSegmentator',
     },
     {
       id: 'tissue_types',
@@ -926,6 +1000,7 @@ export default function SegmentPage() {
       structures_count: 6,
       category: 'Tissue Analysis',
       recommended_for: 'Density profiling, bone mineral assessment & soft tissue margins',
+      engine: 'TotalSegmentator / Intensity',
     },
     {
       id: 'lung_vessels',
@@ -934,6 +1009,7 @@ export default function SegmentPage() {
       structures_count: 8,
       category: 'Thoracic',
       recommended_for: 'Thoracic oncology & airway stent planning',
+      engine: 'TotalSegmentator',
     },
     {
       id: 'body',
@@ -942,9 +1018,11 @@ export default function SegmentPage() {
       structures_count: 1,
       category: 'Surface',
       recommended_for: 'Reference alignment & patient positioning',
+      engine: 'TotalSegmentator',
     },
   ]);
-  const [selectedPreset, setSelectedPreset] = useState<string>('total');
+  const [selectedPreset, setSelectedPreset] = useState<string>('only_bones');
+
   const [autoSegFast, setAutoSegFast] = useState<boolean>(false);
   const [autoSegGenerateSTLs, setAutoSegGenerateSTLs] = useState<boolean>(false);
   const [isAutoSegmenting, setIsAutoSegmenting] = useState<boolean>(false);
@@ -957,7 +1035,23 @@ export default function SegmentPage() {
   const [stlProgress, setStlProgress] = useState<number>(0);
   const [stlMessage, setStlMessage] = useState<string>('');
 
+  // Clinical Safety Simulation Mode Flag
+  const [isSimulatedMode, setIsSimulatedMode] = useState<boolean>(true);
+
+  // Split Mask State & Modal
+  const [splitMaskModalOpen, setSplitMaskModalOpen] = useState<boolean>(false);
+  const [splitMaskTargetLayerId, setSplitMaskTargetLayerId] = useState<string | null>(null);
+  const [splitMaskMode, setSplitMaskMode] = useState<'islands' | 'plane'>('islands');
+  const [splitMaskMinSize, setSplitMaskMinSize] = useState<number>(200);
+  const [splitMaskMaxComponents, setSplitMaskMaxComponents] = useState<number>(8);
+  const [splitMaskPlaneAxis, setSplitMaskPlaneAxis] = useState<'axial' | 'coronal' | 'sagittal'>('axial');
+  const [splitMaskPlaneSlice, setSplitMaskPlaneSlice] = useState<number>(0);
+  const [splitMaskDeleteOriginal, setSplitMaskDeleteOriginal] = useState<boolean>(false);
+  const [splitMaskPrefix, setSplitMaskPrefix] = useState<string>('');
+  const [isSplittingMask, setIsSplittingMask] = useState<boolean>(false);
+
   const layerCreatedRef = useRef(false);
+
 
   /* ── Load initial metadata & layers ──────────────────── */
 
@@ -973,7 +1067,12 @@ export default function SegmentPage() {
         }));
         setLayers(existingLayers);
         if (existingLayers.length > 0) {
-          setActiveLayerId((prev) => prev || existingLayers[0].id);
+          setActiveLayerId((prev) => {
+            const exists = existingLayers.some((el: any) => el.id === prev);
+            if (exists) return prev;
+            const withMask = existingLayers.find((el: any) => el.mask_path);
+            return withMask ? withMask.id : existingLayers[0].id;
+          });
         } else if (!layerCreatedRef.current) {
           layerCreatedRef.current = true;
           createDefaultLayer();
@@ -983,6 +1082,7 @@ export default function SegmentPage() {
       console.error('Failed to load layers', e);
     }
   }, [caseId]);
+
 
   const createDefaultLayer = async () => {
     try {
@@ -1197,6 +1297,174 @@ export default function SegmentPage() {
     }
   };
 
+  /* ── Surgical Planning Prompt Handlers ───────────────── */
+
+  const sendRegionGrowPrompt = async (
+    axis: 'axial' | 'coronal' | 'sagittal',
+    sliceIdx: number,
+    pos: { x: number; y: number }
+  ) => {
+    if (!activeLayerId) return;
+    setIsPrompting(true);
+    try {
+      const res = await executeRegionGrow(caseId, activeLayerId, {
+        axis,
+        slice_index: sliceIdx,
+        point: [pos.x, pos.y],
+        min_hu: rgMinHU,
+        max_hu: rgMaxHU,
+        search_radius_mm: rgRadius,
+        fill_holes: rgFillHoles,
+        positive: includeMode,
+      });
+      setMaskVersion((v) => v + 1);
+      success('3D Region Grown', `${res.voxel_count.toLocaleString()} bone voxels segmented`);
+    } catch (e: any) {
+      error('Region Grow Failed', e.message);
+    } finally {
+      setIsPrompting(false);
+    }
+  };
+
+  const handleKeepSelectedIsland = async (
+    axis: 'axial' | 'coronal' | 'sagittal',
+    sliceIdx: number,
+    pos: { x: number; y: number }
+  ) => {
+    if (!activeLayerId) return;
+    setIsPrompting(true);
+    try {
+      const res = await executeIslandFilter(caseId, activeLayerId, {
+        operation: 'keep_selected',
+        axis,
+        slice_index: sliceIdx,
+        point: [pos.x, pos.y],
+      });
+      setMaskVersion((v) => v + 1);
+      success('Island Isolated', `Retained selected anatomical structure (${res.voxel_count?.toLocaleString()} voxels)`);
+    } catch (e: any) {
+      error('Island Filter Failed', e.message);
+    } finally {
+      setIsPrompting(false);
+    }
+  };
+
+  const handleKeepLargestIsland = async () => {
+    if (!activeLayerId) return;
+    setIsPrompting(true);
+    try {
+      const res = await executeIslandFilter(caseId, activeLayerId, {
+        operation: 'keep_largest',
+      });
+      setMaskVersion((v) => v + 1);
+      success('Purged Floating Debris', `Kept largest body (${res.voxel_count?.toLocaleString()} voxels)`);
+    } catch (e: any) {
+      error('Island Filter Failed', e.message);
+    } finally {
+      setIsPrompting(false);
+    }
+  };
+
+  const handleRemoveSmallIslands = async (minSize = 500) => {
+    if (!activeLayerId) return;
+    setIsPrompting(true);
+    try {
+      const res = await executeIslandFilter(caseId, activeLayerId, {
+        operation: 'remove_small',
+        min_size_voxels: minSize,
+      });
+      setMaskVersion((v) => v + 1);
+      success('Filtered Small Fragments', `Removed components < ${minSize} voxels`);
+    } catch (e: any) {
+      error('Island Filter Failed', e.message);
+    } finally {
+      setIsPrompting(false);
+    }
+  };
+
+  const openSplitMaskModal = (layerId?: string) => {
+    const lid = layerId || activeLayerId;
+    if (!lid) {
+      error('No Layer Selected', 'Please select a segmentation layer to split');
+      return;
+    }
+    setSplitMaskTargetLayerId(lid);
+    const targetLayer = layers.find((l) => l.id === lid);
+    setSplitMaskPrefix(targetLayer ? targetLayer.name : '');
+    setSplitMaskPlaneSlice(axialSlice);
+    setSplitMaskModalOpen(true);
+  };
+
+  const handleExecuteSplitMask = async () => {
+    const targetId = splitMaskTargetLayerId || activeLayerId;
+    if (!targetId) return;
+
+    setIsSplittingMask(true);
+    try {
+      const res = await splitMask(caseId, targetId, {
+        mode: splitMaskMode,
+        min_size_voxels: splitMaskMinSize,
+        max_components: splitMaskMaxComponents,
+        axis: splitMaskPlaneAxis,
+        slice_index: splitMaskPlaneSlice,
+        delete_original: splitMaskDeleteOriginal,
+        prefix: splitMaskPrefix.trim() || undefined,
+      });
+
+      await fetchLayers();
+      setMaskVersion((v) => v + 1);
+      if (res.created_layers && res.created_layers.length > 0) {
+        setActiveLayerId(res.created_layers[0].id);
+      }
+      setSplitMaskModalOpen(false);
+      success('Mask Split Complete', `Generated ${res.components_count} independent segmentation layers`);
+    } catch (e: any) {
+      error('Split Mask Failed', e.message || 'Failed to split segmentation mask');
+    } finally {
+      setIsSplittingMask(false);
+    }
+  };
+
+  const handleSplitIslandsToLayers = async (minSize = 300) => {
+    openSplitMaskModal();
+  };
+
+  const handleApplyBoneThreshold = async (minHU = 200, maxHU = 3000) => {
+    if (!activeLayerId) return;
+    setIsPrompting(true);
+    try {
+      const res = await executeThreshold(caseId, activeLayerId, {
+        min_hu: minHU,
+        max_hu: maxHU,
+        fill_holes: true,
+        mode: 'replace',
+      });
+      setMaskVersion((v) => v + 1);
+      success('Bone Envelope Extracted', `${res.voxel_count?.toLocaleString()} voxels (≥${minHU} HU)`);
+    } catch (e: any) {
+      error('Threshold Extraction Failed', e.message);
+    } finally {
+      setIsPrompting(false);
+    }
+  };
+
+  const handleApplyMorphology = async (op: 'smooth' | 'fill_holes' | 'dilate' | 'erode') => {
+    if (!activeLayerId) return;
+    setIsPrompting(true);
+    try {
+      const res = await executeMorphology(caseId, activeLayerId, {
+        operation: op,
+        radius: 1,
+      });
+      setMaskVersion((v) => v + 1);
+      success(`Applied ${op.replace('_', ' ')}`, `${res.voxel_count?.toLocaleString()} voxels`);
+    } catch (e: any) {
+      error('Morphology Failed', e.message);
+    } finally {
+      setIsPrompting(false);
+    }
+  };
+
   /* ── Mouse Interaction Handlers for Viewport ─────────── */
 
   const handleViewportMouseDown = (
@@ -1206,7 +1474,16 @@ export default function SegmentPage() {
     const currentSlice =
       axis === 'axial' ? axialSlice : axis === 'coronal' ? coronalSlice : sagittalSlice;
 
-    if (activeTool === 'point') {
+    if (activeTool === 'region_grow') {
+      const mid = ++markerIdRef.current;
+      setClickMarkers((prev) => [
+        ...prev,
+        { x: pos.x, y: pos.y, positive: includeMode, id: mid },
+      ]);
+      sendRegionGrowPrompt(axis, currentSlice, pos);
+    } else if (activeTool === 'island') {
+      handleKeepSelectedIsland(axis, currentSlice, pos);
+    } else if (activeTool === 'point') {
       const mid = ++markerIdRef.current;
       setClickMarkers((prev) => [
         ...prev,
@@ -1245,6 +1522,7 @@ export default function SegmentPage() {
       }
     }
   };
+
 
   const handleViewportMouseMove = (pos: { x: number; y: number }) => {
     if (activeTool === 'bbox' && bboxStart) {
@@ -1357,18 +1635,20 @@ export default function SegmentPage() {
 
   const handleStartAutoSeg = async () => {
     try {
+      const engineName = selectedModelEngine === 'monai' ? 'MONAI' : 'TotalSegmentator';
       setIsAutoSegmenting(true);
       setAutoSegProgress(5);
-      setAutoSegMessage('Initializing TotalSegmentator inference engine...');
+      setAutoSegMessage(`Initializing ${engineName} inference pipeline...`);
       setShowAutoSegModal(false);
 
       const res = await startAutoSegmentation(caseId, {
         task: selectedPreset,
+        model_engine: selectedModelEngine,
         fast: autoSegFast,
         generate_stls: autoSegGenerateSTLs,
       });
 
-      info('TotalSegmentator auto-segmentation started', `Task: ${selectedPreset}`);
+      info(`${engineName} Auto-Segmentation Started`, `Task: ${selectedPreset}`);
 
       subscribeToJob(
         res.job_id,
@@ -1382,8 +1662,8 @@ export default function SegmentPage() {
             setMaskVersion((v) => v + 1);
             const count = job.result_data?.structures_count || 'multiple';
             success(
-              'TotalSegmentator Complete',
-              `Segmented ${count} anatomical structures with clinical coordinate accuracy.`
+              `${engineName} Segmentation Complete`,
+              `Extracted ${count} anatomical structures with clinical coordinate accuracy.`
             );
             if (autoSegGenerateSTLs) {
               setTimeout(() => {
@@ -1392,11 +1672,11 @@ export default function SegmentPage() {
             }
           } else if (job.status === 'failed') {
             setIsAutoSegmenting(false);
-            error('Auto-segmentation failed', job.message || 'Error executing TotalSegmentator');
+            error('Auto-segmentation failed', job.message || `Error executing ${engineName}`);
           }
         },
         () => {
-          setIsAutoSegmenting(false);
+          // SSE connection drop callback
         }
       );
     } catch (err: any) {
@@ -1404,6 +1684,7 @@ export default function SegmentPage() {
       error('Failed to start auto-segmentation', err.message);
     }
   };
+
 
   /* ── Batch Accept All Layers & Generate STLs ──────────── */
 
@@ -1644,11 +1925,12 @@ export default function SegmentPage() {
                     letterSpacing: '0.02em',
                   }}
                 >
-                  117+
+                  Bones & Total
                 </span>
               </>
             )}
           </button>
+
 
           {/* Accept / Generate STL Button */}
           {layers.length > 1 ? (
@@ -1695,7 +1977,39 @@ export default function SegmentPage() {
         </div>
       </header>
 
+      {/* ── Clinical Safety Simulation Fallback Warning Banner ── */}
+      {isSimulatedMode && (
+        <div
+          style={{
+            backgroundColor: '#7f1d1d',
+            color: '#fef2f2',
+            padding: '7px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 12,
+            borderBottom: '1px solid #dc2626',
+            boxShadow: '0 2px 8px rgba(220,38,38,0.25)',
+            zIndex: 15,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertTriangle size={15} color="#fca5a5" />
+            <span style={{ fontWeight: 700, letterSpacing: '0.03em' }}>
+              CLINICAL WARNING: SIMULATION / HEURISTIC FALLBACK MODE ACTIVE
+            </span>
+            <span style={{ color: '#fecaca', fontSize: 11.5 }}>
+              nnInteractive / TotalSegmentator neural inference server is offline. Segmentation & auto-seg are executing via heuristic intensity approximations. Always verify anatomical boundaries.
+            </span>
+          </div>
+          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 600 }}>
+            SIMULATED FALLBACK
+          </span>
+        </div>
+      )}
+
       {/* ── Auto-Segmentation Real-time Floating HUD Banner ── */}
+
       {isAutoSegmenting && (
         <div
           style={{
@@ -1872,6 +2186,373 @@ export default function SegmentPage() {
               </button>
             </div>
           </div>
+
+          {/* 🪄 3D Region Growing Config (when activeTool === 'region_grow') */}
+          {activeTool === 'region_grow' && (
+            <div
+              style={{
+                backgroundColor: '#fff',
+                padding: 10,
+                borderRadius: 8,
+                border: '1px solid #10b981',
+                boxShadow: '0 1px 4px rgba(16,185,129,0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#065f46', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Zap size={13} color="#10b981" /> 3D Region Grow (HU)
+                </span>
+              </div>
+
+              {/* Quick Presets */}
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => { setRgMinHU(400); setRgMaxHU(3000); }}
+                  style={{
+                    flex: 1,
+                    fontSize: 9,
+                    padding: '3px 0',
+                    borderRadius: 4,
+                    border: '1px solid #d1fae5',
+                    backgroundColor: rgMinHU === 400 ? '#ecfdf5' : '#fff',
+                    color: '#065f46',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cortical (≥400)
+                </button>
+                <button
+                  onClick={() => { setRgMinHU(150); setRgMaxHU(3000); }}
+                  style={{
+                    flex: 1,
+                    fontSize: 9,
+                    padding: '3px 0',
+                    borderRadius: 4,
+                    border: '1px solid #d1fae5',
+                    backgroundColor: rgMinHU === 150 ? '#ecfdf5' : '#fff',
+                    color: '#065f46',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  All Bone (≥150)
+                </button>
+                <button
+                  onClick={() => { setRgMinHU(20); setRgMaxHU(120); }}
+                  style={{
+                    flex: 1,
+                    fontSize: 9,
+                    padding: '3px 0',
+                    borderRadius: 4,
+                    border: '1px solid #d1fae5',
+                    backgroundColor: rgMinHU === 20 ? '#ecfdf5' : '#fff',
+                    color: '#065f46',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Tissue (20-120)
+                </button>
+              </div>
+
+              {/* Min HU Slider */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--color-charcoal-muted)', marginBottom: 2 }}>
+                  <span>Min HU</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--color-charcoal)' }}>{rgMinHU} HU</span>
+                </div>
+                <input
+                  type="range"
+                  min="-200"
+                  max="1000"
+                  step="10"
+                  value={rgMinHU}
+                  onChange={(e) => setRgMinHU(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: '#10b981', height: 4 }}
+                />
+              </div>
+
+              {/* Max HU Slider */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--color-charcoal-muted)', marginBottom: 2 }}>
+                  <span>Max HU</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--color-charcoal)' }}>{rgMaxHU} HU</span>
+                </div>
+                <input
+                  type="range"
+                  min="200"
+                  max="3000"
+                  step="50"
+                  value={rgMaxHU}
+                  onChange={(e) => setRgMaxHU(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: '#10b981', height: 4 }}
+                />
+              </div>
+
+              {/* Search Radius Slider */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--color-charcoal-muted)', marginBottom: 2 }}>
+                  <span>Search Radius</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--color-charcoal)' }}>{rgRadius >= 200 ? 'Full Volume' : `${rgRadius} mm`}</span>
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="200"
+                  step="5"
+                  value={rgRadius}
+                  onChange={(e) => setRgRadius(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: '#10b981', height: 4 }}
+                />
+              </div>
+
+              {/* Hole Filling Checkbox */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, cursor: 'pointer', color: 'var(--color-charcoal)' }}>
+                <input
+                  type="checkbox"
+                  checked={rgFillHoles}
+                  onChange={(e) => setRgFillHoles(e.target.checked)}
+                  style={{ accentColor: '#10b981' }}
+                />
+                <span>Fill Internal Bone Cavities (Watertight)</span>
+              </label>
+            </div>
+          )}
+
+          {/* 🏝️ 3D Slicer Island Tools (when activeTool === 'island') */}
+          {activeTool === 'island' && (
+            <div
+              style={{
+                backgroundColor: '#fff',
+                padding: 10,
+                borderRadius: 8,
+                border: '1px solid #38bdf8',
+                boxShadow: '0 1px 4px rgba(56,189,248,0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <LayersIcon size={13} color="#0284c7" /> Island Filter (3D Slicer)
+              </span>
+              <p style={{ fontSize: 9, color: 'var(--color-charcoal-muted)', margin: 0 }}>
+                Click any bone in slice view to isolate it, or run 1-click filters:
+              </p>
+
+              <button
+                onClick={handleKeepLargestIsland}
+                disabled={isPrompting || !activeLayerId}
+                className="btn"
+                style={{
+                  fontSize: 10,
+                  padding: '5px 8px',
+                  backgroundColor: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  color: '#0369a1',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  justifyContent: 'center',
+                }}
+              >
+                👑 Keep Largest Island (Purge Table)
+              </button>
+
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => handleRemoveSmallIslands(islandMinSize)}
+                  disabled={isPrompting || !activeLayerId}
+                  className="btn"
+                  style={{
+                    flex: 1,
+                    fontSize: 9,
+                    padding: '4px 6px',
+                    backgroundColor: '#fff',
+                    border: '1px solid var(--color-border-mist)',
+                    color: 'var(--color-charcoal)',
+                    fontWeight: 500,
+                  }}
+                >
+                  Purge &lt; {islandMinSize} vx
+                </button>
+                <button
+                  onClick={() => openSplitMaskModal()}
+                  disabled={isPrompting || !activeLayerId}
+                  className="btn"
+                  style={{
+                    flex: 1,
+                    fontSize: 9,
+                    padding: '4px 6px',
+                    backgroundColor: '#e0f2fe',
+                    border: '1px solid #7dd3fc',
+                    color: '#0369a1',
+                    fontWeight: 600,
+                  }}
+                >
+                  🗂️ Split to Layers
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ✂️ Split Mask Quick Tool (when activeTool === 'split_mask') */}
+          {activeTool === 'split_mask' && (
+            <div
+              style={{
+                backgroundColor: '#fff',
+                padding: 10,
+                borderRadius: 8,
+                border: '1px solid #0284c7',
+                boxShadow: '0 1px 4px rgba(2,132,199,0.12)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Split size={13} color="#0284c7" /> Split Mask Studio
+              </span>
+              <p style={{ fontSize: 9, color: 'var(--color-charcoal-muted)', margin: 0 }}>
+                Partition the active segmentation mask into separate layers by disconnected islands or plane cut:
+              </p>
+
+              <button
+                onClick={() => openSplitMaskModal()}
+                disabled={isPrompting || !activeLayerId}
+                className="btn"
+                style={{
+                  fontSize: 10,
+                  padding: '6px 8px',
+                  backgroundColor: '#0284c7',
+                  border: '1px solid #0284c7',
+                  color: '#fff',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  justifyContent: 'center',
+                  borderRadius: 6,
+                }}
+              >
+                <Split size={12} /> Configure & Split Mask
+              </button>
+            </div>
+          )}
+
+          {/* 🦴 Orthopedic Bone & Surgical Morphology Quick Tools */}
+          <div
+            style={{
+              backgroundColor: '#fff',
+              padding: 8,
+              borderRadius: 8,
+              border: '1px solid var(--color-border-mist)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: 'var(--color-charcoal-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontFamily: 'var(--font-sans)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <Cpu size={11} /> Surgical Bone Tools
+            </span>
+
+            <button
+              onClick={() => handleApplyBoneThreshold(200, 3000)}
+              disabled={isPrompting || !activeLayerId}
+              className="btn"
+              style={{
+                fontSize: 10,
+                padding: '4px 8px',
+                backgroundColor: '#fefce8',
+                border: '1px solid #fef08a',
+                color: '#854d0e',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+              }}
+            >
+              🦴 Extract Bone Envelope (≥200 HU)
+            </button>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+              <button
+                onClick={() => handleApplyMorphology('fill_holes')}
+                disabled={isPrompting || !activeLayerId}
+                style={{
+                  padding: '3px 4px',
+                  fontSize: 9,
+                  borderRadius: 5,
+                  border: '1px solid var(--color-border-mist)',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Fill Cavities
+              </button>
+              <button
+                onClick={() => handleApplyMorphology('smooth')}
+                disabled={isPrompting || !activeLayerId}
+                style={{
+                  padding: '3px 4px',
+                  fontSize: 9,
+                  borderRadius: 5,
+                  border: '1px solid var(--color-border-mist)',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Smooth 3D
+              </button>
+              <button
+                onClick={() => handleApplyMorphology('dilate')}
+                disabled={isPrompting || !activeLayerId}
+                style={{
+                  padding: '3px 4px',
+                  fontSize: 9,
+                  borderRadius: 5,
+                  border: '1px solid var(--color-border-mist)',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Dilate +1mm
+              </button>
+              <button
+                onClick={() => handleApplyMorphology('erode')}
+                disabled={isPrompting || !activeLayerId}
+                style={{
+                  padding: '3px 4px',
+                  fontSize: 9,
+                  borderRadius: 5,
+                  border: '1px solid var(--color-border-mist)',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Erode -1mm
+              </button>
+            </div>
+          </div>
+
 
           {/* CT Windowing Controls (HU WW/WL) */}
           <div
@@ -2198,8 +2879,29 @@ export default function SegmentPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            openSplitMaskModal(l.id);
+                          }}
+                          title="Split Mask into Layers"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--color-charcoal-muted)',
+                            cursor: 'pointer',
+                            padding: 2,
+                            display: 'flex',
+                            borderRadius: 4,
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = '#0284c7')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-charcoal-muted)')}
+                        >
+                          <Split size={13} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             handleToggleLayerVisibility(l.id);
                           }}
+                          title={isVis ? "Hide Layer Overlay" : "Show Layer Overlay"}
                           style={{
                             background: 'none',
                             border: 'none',
@@ -2468,7 +3170,7 @@ export default function SegmentPage() {
                   overflow: 'hidden',
                 }}
               >
-                <Volume3DPreview caseId={caseId} />
+                <Volume3DPreview caseId={caseId} refreshKey={maskVersion} layerId={activeLayerId} />
               </div>
             )}
           </main>
@@ -2561,38 +3263,46 @@ export default function SegmentPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    backgroundColor: '#ecfdf5',
-                    border: '1px solid #10b981',
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    backgroundColor: selectedModelEngine === 'monai' ? '#eff6ff' : '#ecfdf5',
+                    border: `1.5px solid ${selectedModelEngine === 'monai' ? '#3b82f6' : '#10b981'}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    transition: 'all 200ms ease',
                   }}
                 >
-                  <Sparkles size={22} color="#059669" />
+                  {selectedModelEngine === 'monai' ? (
+                    <Brain size={24} color="#2563eb" />
+                  ) : (
+                    <Sparkles size={24} color="#059669" />
+                  )}
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--color-forest-ink)' }}>
-                      TotalSegmentator AI Auto-Segmentation
+                      AI Auto-Segmentation Engine
                     </h3>
                     <span
                       style={{
-                        backgroundColor: '#10b981',
+                        backgroundColor: selectedModelEngine === 'monai' ? '#2563eb' : '#10b981',
                         color: '#fff',
                         fontSize: 10,
                         fontWeight: 700,
                         padding: '2px 8px',
                         borderRadius: 12,
+                        transition: 'all 200ms ease',
                       }}
                     >
-                      v2.0
+                      {selectedModelEngine === 'monai' ? 'MONAI 1.6' : 'TotalSegmentator v2.0'}
                     </span>
                   </div>
                   <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--color-charcoal-muted)' }}>
-                    Fully automated deep learning segmentation of 117+ anatomical structures directly from CT voxels.
+                    {selectedModelEngine === 'monai'
+                      ? 'NVIDIA & Project MONAI deep learning models for zero-shot and whole-body CT multi-organ & bone segmentation.'
+                      : 'Deep learning CT segmentation of bones and 117+ anatomical structures directly from CT voxels.'}
                   </p>
                 </div>
               </div>
@@ -2602,6 +3312,80 @@ export default function SegmentPage() {
               >
                 <X size={18} />
               </button>
+            </div>
+
+            {/* AI Model Engine Selector Tabs */}
+            <div style={{ marginBottom: 16 }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: 'var(--color-charcoal-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  marginBottom: 6,
+                }}
+              >
+                Select AI Deep Learning Engine
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedModelEngine('totalsegmentator');
+                    if (selectedPreset.startsWith('monai_')) setSelectedPreset('only_bones');
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1.5px solid',
+                    borderColor: selectedModelEngine === 'totalsegmentator' ? '#10b981' : 'var(--color-border-mist)',
+                    backgroundColor: selectedModelEngine === 'totalsegmentator' ? '#f0fdf4' : '#fff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    fontWeight: selectedModelEngine === 'totalsegmentator' ? 700 : 500,
+                    color: selectedModelEngine === 'totalsegmentator' ? '#047857' : 'var(--color-charcoal)',
+                    fontSize: 12,
+                    transition: 'all 150ms ease',
+                  }}
+                >
+                  <Sparkles size={14} color={selectedModelEngine === 'totalsegmentator' ? '#059669' : '#64748b'} />
+                  <span>TotalSegmentator v2.0</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedModelEngine('monai');
+                    if (!selectedPreset.startsWith('monai_')) setSelectedPreset('monai_wholebody');
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1.5px solid',
+                    borderColor: selectedModelEngine === 'monai' ? '#3b82f6' : 'var(--color-border-mist)',
+                    backgroundColor: selectedModelEngine === 'monai' ? '#eff6ff' : '#fff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    fontWeight: selectedModelEngine === 'monai' ? 700 : 500,
+                    color: selectedModelEngine === 'monai' ? '#1d4ed8' : 'var(--color-charcoal)',
+                    fontSize: 12,
+                    transition: 'all 150ms ease',
+                  }}
+                >
+                  <Brain size={14} color={selectedModelEngine === 'monai' ? '#2563eb' : '#64748b'} />
+                  <span>MONAI 1.6 (VISTA-3D / Auto3DSeg)</span>
+                </button>
+              </div>
             </div>
 
             {/* Task Presets Grid */}
@@ -2621,66 +3405,95 @@ export default function SegmentPage() {
               </label>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 8 }}>
-                {autoSegPresets.map((preset) => {
-                  const isSelected = selectedPreset === preset.id;
-                  return (
-                    <div
-                      key={preset.id}
-                      onClick={() => setSelectedPreset(preset.id)}
-                      style={{
-                        padding: '10px 12px',
-                        borderRadius: 10,
-                        border: '1.5px solid',
-                        borderColor: isSelected ? '#10b981' : 'var(--color-border-mist)',
-                        backgroundColor: isSelected ? '#f0fdf4' : '#fff',
-                        cursor: 'pointer',
-                        transition: 'all 120ms ease',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 4,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div
-                            style={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: '50%',
-                              border: '1.5px solid',
-                              borderColor: isSelected ? '#10b981' : 'var(--color-border-mist)',
-                              backgroundColor: isSelected ? '#10b981' : '#fff',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            {isSelected && <Check size={10} color="#fff" />}
+                {autoSegPresets
+                  .filter((preset) => {
+                    if (selectedModelEngine === 'monai') {
+                      return preset.id.startsWith('monai_') || preset.id === 'only_bones';
+                    }
+                    return !preset.id.startsWith('monai_');
+                  })
+                  .map((preset) => {
+                    const isSelected = selectedPreset === preset.id;
+                    const isOnlyBones = preset.id === 'only_bones';
+                    const activeBorderColor = selectedModelEngine === 'monai' ? '#3b82f6' : '#10b981';
+                    const activeBgColor = selectedModelEngine === 'monai' ? '#eff6ff' : '#f0fdf4';
+
+                    return (
+                      <div
+                        key={preset.id}
+                        onClick={() => setSelectedPreset(preset.id)}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          border: isSelected ? `2px solid ${activeBorderColor}` : isOnlyBones ? '1.5px solid #a7f3d0' : '1.5px solid var(--color-border-mist)',
+                          backgroundColor: isSelected ? activeBgColor : isOnlyBones ? '#fafffd' : '#fff',
+                          cursor: 'pointer',
+                          transition: 'all 120ms ease',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 4,
+                          position: 'relative',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div
+                              style={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                border: '1.5px solid',
+                                borderColor: isSelected ? activeBorderColor : 'var(--color-border-mist)',
+                                backgroundColor: isSelected ? activeBorderColor : '#fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              {isSelected && <Check size={10} color="#fff" />}
+                            </div>
+                            <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-forest-ink)' }}>
+                              {preset.name}
+                            </span>
                           </div>
-                          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-forest-ink)' }}>
-                            {preset.name}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {isOnlyBones && (
+                              <span
+                                style={{
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  padding: '1px 5px',
+                                  borderRadius: 4,
+                                  backgroundColor: '#dcfce7',
+                                  color: '#15803d',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.04em',
+                                }}
+                              >
+                                Bone Target
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '1px 6px',
+                                borderRadius: 6,
+                                backgroundColor: isSelected ? (selectedModelEngine === 'monai' ? '#dbeafe' : '#d1fae5') : 'var(--color-surface-sunken)',
+                                color: isSelected ? (selectedModelEngine === 'monai' ? '#1e40af' : '#047857') : 'var(--color-charcoal-muted)',
+                                fontFamily: 'var(--font-mono)',
+                              }}
+                            >
+                              {preset.structures_count} {preset.structures_count === 1 ? 'target' : 'classes'}
+                            </span>
+                          </div>
                         </div>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            padding: '1px 6px',
-                            borderRadius: 6,
-                            backgroundColor: isSelected ? '#d1fae5' : 'var(--color-surface-sunken)',
-                            color: isSelected ? '#047857' : 'var(--color-charcoal-muted)',
-                            fontFamily: 'var(--font-mono)',
-                          }}
-                        >
-                          {preset.structures_count} classes
-                        </span>
+                        <p style={{ fontSize: 11, color: 'var(--color-charcoal-muted)', margin: '2px 0 0 22px', lineHeight: 1.4 }}>
+                          {preset.description}
+                        </p>
                       </div>
-                      <p style={{ fontSize: 11, color: 'var(--color-charcoal-muted)', margin: '2px 0 0 22px', lineHeight: 1.4 }}>
-                        {preset.description}
-                      </p>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             </div>
 
@@ -2699,16 +3512,16 @@ export default function SegmentPage() {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-charcoal)' }}>Fast Preview Mode</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-charcoal)' }}>Fast Inference Mode</div>
                   <div style={{ fontSize: 11, color: 'var(--color-charcoal-muted)' }}>
-                    Downsamples resolution for ~3× faster inference (recommended for quick anatomy verification)
+                    Optimized resolution for ~3× faster execution (recommended for interactive planning)
                   </div>
                 </div>
                 <input
                   type="checkbox"
                   checked={autoSegFast}
                   onChange={(e) => setAutoSegFast(e.target.checked)}
-                  style={{ width: 16, height: 16, accentColor: '#10b981', cursor: 'pointer' }}
+                  style={{ width: 16, height: 16, accentColor: selectedModelEngine === 'monai' ? '#3b82f6' : '#10b981', cursor: 'pointer' }}
                 />
               </div>
 
@@ -2727,7 +3540,7 @@ export default function SegmentPage() {
                   type="checkbox"
                   checked={autoSegGenerateSTLs}
                   onChange={(e) => setAutoSegGenerateSTLs(e.target.checked)}
-                  style={{ width: 16, height: 16, accentColor: '#10b981', cursor: 'pointer' }}
+                  style={{ width: 16, height: 16, accentColor: selectedModelEngine === 'monai' ? '#3b82f6' : '#10b981', cursor: 'pointer' }}
                 />
               </div>
             </div>
@@ -2741,8 +3554,8 @@ export default function SegmentPage() {
                 onClick={handleStartAutoSeg}
                 className="btn btn-primary"
                 style={{
-                  backgroundColor: '#059669',
-                  borderColor: '#059669',
+                  backgroundColor: selectedModelEngine === 'monai' ? '#2563eb' : '#059669',
+                  borderColor: selectedModelEngine === 'monai' ? '#2563eb' : '#059669',
                   padding: '8px 20px',
                   fontSize: 13,
                   fontWeight: 600,
@@ -2751,10 +3564,11 @@ export default function SegmentPage() {
                   gap: 8,
                 }}
               >
-                <Sparkles size={15} />
-                <span>Run TotalSegmentator</span>
+                {selectedModelEngine === 'monai' ? <Brain size={15} /> : <Sparkles size={15} />}
+                <span>{selectedModelEngine === 'monai' ? 'Run MONAI Engine' : 'Run TotalSegmentator'}</span>
               </button>
             </div>
+
           </div>
         </div>
       )}
@@ -2835,6 +3649,366 @@ export default function SegmentPage() {
             >
               <span>Pipeline Stage 4</span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{stlProgress}%</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ✂️ Split Mask Studio Modal ────────────────────── */}
+      {splitMaskModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 62, 23, 0.45)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSplittingMask) {
+              setSplitMaskModalOpen(false);
+            }
+          }}
+        >
+          <div
+            className="animate-fade-in-scale"
+            style={{
+              width: 520,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              backgroundColor: '#fff',
+              borderRadius: 'var(--radius-cards)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              padding: 24,
+              border: '1px solid var(--color-border-mist)',
+              boxShadow: '0 20px 45px rgba(0,0,0,0.2)',
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 8,
+                    backgroundColor: '#e0f2fe',
+                    color: '#0284c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Split size={20} />
+                </div>
+                <div>
+                  <h3
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 600,
+                      color: 'var(--color-forest-ink)',
+                      margin: 0,
+                      fontFamily: 'var(--font-sans)',
+                    }}
+                  >
+                    3D Split Mask Studio
+                  </h3>
+                  <div style={{ fontSize: 11, color: 'var(--color-charcoal-muted)' }}>
+                    Partition anatomical mask into independent segmentation layers
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSplitMaskModalOpen(false)}
+                disabled={isSplittingMask}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-charcoal-muted)',
+                  cursor: 'pointer',
+                  padding: 4,
+                  borderRadius: 4,
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Target Layer Info Banner */}
+            {(() => {
+              const targetLayer = layers.find((l) => l.id === (splitMaskTargetLayerId || activeLayerId));
+              return (
+                <div
+                  style={{
+                    backgroundColor: '#f8fafc',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid var(--color-border-mist)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-charcoal-muted)' }}>Target Layer:</span>
+                    <span
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        backgroundColor: targetLayer?.color || '#00e575',
+                      }}
+                    />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-charcoal)' }}>
+                      {targetLayer?.name || 'Active Layer'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 10, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
+                    Stage 3 Mask
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Splitting Mode Tabs */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, backgroundColor: '#f1f5f9', padding: 4, borderRadius: 8 }}>
+              <button
+                onClick={() => setSplitMaskMode('islands')}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 6,
+                  border: 'none',
+                  backgroundColor: splitMaskMode === 'islands' ? '#fff' : 'transparent',
+                  color: splitMaskMode === 'islands' ? '#0284c7' : 'var(--color-charcoal-muted)',
+                  fontWeight: splitMaskMode === 'islands' ? 700 : 500,
+                  fontSize: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  cursor: 'pointer',
+                  boxShadow: splitMaskMode === 'islands' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 120ms ease',
+                }}
+              >
+                <LayersIcon size={14} />
+                <span>Disconnected Islands</span>
+              </button>
+
+              <button
+                onClick={() => setSplitMaskMode('plane')}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 6,
+                  border: 'none',
+                  backgroundColor: splitMaskMode === 'plane' ? '#fff' : 'transparent',
+                  color: splitMaskMode === 'plane' ? '#0284c7' : 'var(--color-charcoal-muted)',
+                  fontWeight: splitMaskMode === 'plane' ? 700 : 500,
+                  fontSize: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  cursor: 'pointer',
+                  boxShadow: splitMaskMode === 'plane' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 120ms ease',
+                }}
+              >
+                <Scissors size={14} />
+                <span>Planar Slice Cut</span>
+              </button>
+            </div>
+
+            {/* Mode 1: Disconnected Islands Options */}
+            {splitMaskMode === 'islands' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, backgroundColor: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid var(--color-border-mist)' }}>
+                <div style={{ fontSize: 11, color: 'var(--color-charcoal)' }}>
+                  Performs 3D graph component labeling to automatically separate discrete bone fragments, vertebrae, or anatomical structures into distinct colored layers.
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-charcoal)', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>Minimum Component Size</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#0284c7' }}>{splitMaskMinSize.toLocaleString()} voxels</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="50"
+                    max="2000"
+                    step="50"
+                    value={splitMaskMinSize}
+                    onChange={(e) => setSplitMaskMinSize(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#0284c7', height: 4 }}
+                  />
+                  <div style={{ fontSize: 9, color: 'var(--color-charcoal-muted)', marginTop: 2 }}>
+                    Debris smaller than this threshold will be ignored (top 2 fragments always kept).
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-charcoal)', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>Max Component Layers</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#0284c7' }}>{splitMaskMaxComponents} layers</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="2"
+                    max="16"
+                    step="1"
+                    value={splitMaskMaxComponents}
+                    onChange={(e) => setSplitMaskMaxComponents(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#0284c7', height: 4 }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Mode 2: Planar Slice Cut Options */}
+            {splitMaskMode === 'plane' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, backgroundColor: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid var(--color-border-mist)' }}>
+                <div style={{ fontSize: 11, color: 'var(--color-charcoal)' }}>
+                  Bisects the active 3D segmentation mask along an anatomical slice plane, generating two child layers (Part A and Part B).
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-charcoal)', display: 'block', marginBottom: 4 }}>
+                    Cutting Plane Orientation:
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                    {(['axial', 'coronal', 'sagittal'] as const).map((ax) => {
+                      const isSel = splitMaskPlaneAxis === ax;
+                      const label = ax === 'axial' ? 'Axial (Z)' : ax === 'coronal' ? 'Coronal (Y)' : 'Sagittal (X)';
+                      const maxSlice = ax === 'axial' ? maxAxial : ax === 'coronal' ? maxCoronal : maxSagittal;
+                      return (
+                        <button
+                          key={ax}
+                          type="button"
+                          onClick={() => {
+                            setSplitMaskPlaneAxis(ax);
+                            const current = ax === 'axial' ? axialSlice : ax === 'coronal' ? coronalSlice : sagittalSlice;
+                            setSplitMaskPlaneSlice(current);
+                          }}
+                          style={{
+                            padding: '6px 8px',
+                            borderRadius: 6,
+                            border: '1px solid',
+                            borderColor: isSel ? '#0284c7' : 'var(--color-border-mist)',
+                            backgroundColor: isSel ? '#e0f2fe' : '#fff',
+                            color: isSel ? '#0369a1' : 'var(--color-charcoal)',
+                            fontWeight: isSel ? 700 : 500,
+                            fontSize: 11,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-charcoal)', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>Cut Slice Position</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#0284c7' }}>
+                      Slice {splitMaskPlaneSlice} / {splitMaskPlaneAxis === 'axial' ? maxAxial : splitMaskPlaneAxis === 'coronal' ? maxCoronal : maxSagittal}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={Math.max(1, (splitMaskPlaneAxis === 'axial' ? maxAxial : splitMaskPlaneAxis === 'coronal' ? maxCoronal : maxSagittal) - 1)}
+                    value={splitMaskPlaneSlice}
+                    onChange={(e) => setSplitMaskPlaneSlice(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#0284c7', height: 4 }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* General Settings */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-charcoal)', display: 'block', marginBottom: 4 }}>
+                  Layer Name Prefix (Optional):
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Femur Fragment, Vertebra, Bone"
+                  value={splitMaskPrefix}
+                  onChange={(e) => setSplitMaskPrefix(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '6px 10px',
+                    fontSize: 12,
+                    borderRadius: 6,
+                    border: '1px solid var(--color-border-mist)',
+                    backgroundColor: '#fff',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, cursor: 'pointer', color: 'var(--color-charcoal)' }}>
+                <input
+                  type="checkbox"
+                  checked={splitMaskDeleteOriginal}
+                  onChange={(e) => setSplitMaskDeleteOriginal(e.target.checked)}
+                  style={{ accentColor: '#0284c7' }}
+                />
+                <span>Archive / Remove original parent layer after splitting</span>
+              </label>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+              <button
+                type="button"
+                onClick={() => setSplitMaskModalOpen(false)}
+                disabled={isSplittingMask}
+                className="btn btn-ghost"
+                style={{ padding: '8px 16px', fontSize: 12 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteSplitMask}
+                disabled={isSplittingMask}
+                className="btn"
+                style={{
+                  backgroundColor: '#0284c7',
+                  border: '1px solid #0284c7',
+                  color: '#fff',
+                  padding: '8px 20px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  borderRadius: 6,
+                  cursor: isSplittingMask ? 'not-allowed' : 'pointer',
+                  opacity: isSplittingMask ? 0.7 : 1,
+                }}
+              >
+                {isSplittingMask ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Splitting Mask...</span>
+                  </>
+                ) : (
+                  <>
+                    <Split size={14} />
+                    <span>Execute Split Mask</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

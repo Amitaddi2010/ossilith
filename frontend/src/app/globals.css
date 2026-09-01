@@ -250,36 +250,63 @@ p {
 
 /* ── Pill Badge / Tag ───────────────────────────────────── */
 
-.pill-badge {
+.pill-badge,
+.pill-badge-forest,
+.pill-badge-sage,
+.pill-badge-slate,
+.pill-badge-rose,
+.pill-badge-amber {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  border-radius: var(--radius-badges, 9999px);
+  padding: 5px 14px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: all 150ms ease;
+  user-select: none;
+}
+
+.pill-badge {
   background-color: var(--color-cream-paper);
   color: var(--color-forest-ink);
-  border-radius: var(--radius-badges);
-  padding: 6px 14px;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: var(--font-weight-regular);
   border: 1px solid var(--color-border-mist);
 }
 
 .pill-badge-forest {
   background-color: var(--color-forest-ink);
-  color: var(--color-cream-paper);
-  border: none;
+  color: #ffffff;
+  border: 1px solid var(--color-forest-ink);
+  box-shadow: 0 1px 4px rgba(18, 53, 36, 0.18);
+  font-weight: 600;
 }
 
 .pill-badge-sage {
   background-color: var(--color-sage-mist);
   color: var(--color-forest-ink);
-  border: none;
+  border: 1px solid rgba(18, 53, 36, 0.1);
 }
 
 .pill-badge-slate {
   background-color: var(--color-slate-hush);
   color: var(--color-forest-ink);
-  border: none;
+  border: 1px solid var(--color-border-mist);
+}
+
+.pill-badge-rose {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.pill-badge-amber {
+  background-color: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
 }
 
 /* ── Layered Tinted Panels (Flat, Shadowless Surfaces) ─── */
@@ -360,17 +387,41 @@ p {
 
 .progress-bar {
   width: 100%;
-  height: 6px;
-  background-color: rgba(15, 62, 23, 0.1);
-  border-radius: var(--radius-badges);
+  height: 8px;
+  background-color: rgba(15, 62, 23, 0.08);
+  border-radius: 9999px;
   overflow: hidden;
+  position: relative;
 }
 
 .progress-bar-fill {
   height: 100%;
-  background-color: var(--color-forest-ink);
-  border-radius: var(--radius-badges);
-  transition: width 250ms ease;
+  background: linear-gradient(90deg, #0f3e17 0%, #2e7d32 70%, #4caf50 100%);
+  border-radius: 9999px;
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px rgba(46, 125, 50, 0.4);
+}
+
+.progress-bar-indeterminate {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-indeterminate::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(46, 125, 50, 0.8), transparent);
+  animation: indeterminateProgress 1.5s infinite ease-in-out;
+  border-radius: 9999px;
+}
+
+@keyframes indeterminateProgress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
 }
 
 /* ── Layout Container ───────────────────────────────────── */

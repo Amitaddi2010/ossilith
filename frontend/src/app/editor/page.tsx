@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import {
@@ -149,6 +149,11 @@ export default function StandaloneEditorPage() {
     redo,
     undoStack,
     redoStack,
+    clipboard,
+    copySelected,
+    pasteClipboard,
+    duplicateSelected,
+    deleteSelected,
     clearObjects,
     renderMode,
     setRenderMode,
@@ -273,6 +278,36 @@ export default function StandaloneEditorPage() {
         return;
       }
 
+      // Copy (Ctrl + C)
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        const copied = copySelected();
+        if (copied.length > 0) {
+          success('Copied to Clipboard', `${copied.length} 3D model(s) copied`);
+        }
+        return;
+      }
+
+      // Paste (Ctrl + V)
+      if (e.ctrlKey && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        const pasted = pasteClipboard();
+        if (pasted.length > 0) {
+          success('Pasted Model', `Created ${pasted.length} duplicate object(s)`);
+        }
+        return;
+      }
+
+      // Duplicate (Ctrl + D)
+      if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        const duplicated = duplicateSelected();
+        if (duplicated.length > 0) {
+          success('Duplicated Model', `Created ${duplicated.length} clone(s)`);
+        }
+        return;
+      }
+
       // Reset Transform (Alt + R)
       if (e.altKey && (e.key === 'r' || e.key === 'R')) {
         e.preventDefault();
@@ -319,9 +354,9 @@ export default function StandaloneEditorPage() {
         deselectAll();
         clearConnectorPoints();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (activeObj) {
-          removeObject(activeObj.id);
-          success('Object Removed', activeObj.name);
+        if (selectedList.length > 0) {
+          deleteSelected();
+          success('Objects Removed', 'Deleted with undo history (Ctrl+Z to restore)');
         }
       }
     };
@@ -330,12 +365,17 @@ export default function StandaloneEditorPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     activeObj,
+    selectedList,
     setActiveTool,
     setTransformSubmode,
     setRibbonTab,
     resetTransform,
     undo,
     redo,
+    copySelected,
+    pasteClipboard,
+    duplicateSelected,
+    deleteSelected,
     deselectAll,
     clearConnectorPoints,
     removeObject,
@@ -1201,7 +1241,7 @@ export default function StandaloneEditorPage() {
 
 
         {/* ── Center 3D Viewport ─────────────────────────────── */}
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100%', minHeight: 0, overflow: 'hidden' }}>
           {/* Breach HUD Warning */}
           {breachDetectionEnabled && breachAlerts.length > 0 && (
             <div
@@ -1429,7 +1469,7 @@ export default function StandaloneEditorPage() {
 
 
           {/* 3D Canvas */}
-          <div style={{ flex: 1, position: 'relative' }}>
+          <div style={{ flex: 1, position: 'relative', width: '100%', height: '100%', minHeight: 0, overflow: 'hidden' }}>
             <EditorViewport caseId="standalone" />
 
             {/* CSG Loading Screen */}
@@ -1477,93 +1517,103 @@ export default function StandaloneEditorPage() {
 
           {/* Bottom Precision Numeric Input Bar */}
           <div
-            className="panel-cream"
             style={{
               position: 'absolute',
               bottom: 14,
               left: 14,
               zIndex: 20,
               display: 'flex',
+              alignItems: 'center',
               padding: '6px 14px',
-              gap: 14,
-              borderRadius: 10,
+              gap: 12,
+              borderRadius: 12,
               fontSize: 11.5,
+              backgroundColor: 'rgba(255, 255, 255, 0.94)',
+              backdropFilter: 'blur(12px)',
               border: '1px solid var(--color-border-mist)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
-              maxWidth: 'calc(100% - 260px)',
+              boxShadow: '0 4px 18px rgba(18, 53, 36, 0.1)',
+              maxWidth: 'calc(100% - 28px)',
+              width: 'fit-content',
               overflowX: 'auto',
               scrollbarWidth: 'none',
+              userSelect: 'none',
             }}
           >
+            {['Position', 'Rotation', 'Scale'].map((label, groupIdx) => (
+              <React.Fragment key={label}>
+                {groupIdx > 0 && (
+                  <div style={{ width: 1, height: 20, backgroundColor: 'var(--color-border-mist)', flexShrink: 0 }} />
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <span style={{ color: 'var(--color-forest-ink)', fontWeight: 600, fontSize: 11, minWidth: 46 }}>
+                    {label}
+                  </span>
+                  {['X', 'Y', 'Z'].map((axis, axisIdx) => {
+                    const val = activeObj
+                      ? label === 'Position'
+                        ? activeObj.position[axisIdx]
+                        : label === 'Rotation'
+                          ? THREE.MathUtils.radToDeg(activeObj.rotation[axisIdx])
+                          : activeObj.scale[axisIdx]
+                      : label === 'Scale'
+                        ? 1
+                        : 0;
 
-            {['Position', 'Rotation', 'Scale'].map((label) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: 'var(--color-muted)', fontWeight: 600, fontSize: 10.5, width: 44 }}>
-                  {label}
-                </span>
-                {['X', 'Y', 'Z'].map((axis, axisIdx) => {
-                  const val = activeObj
-                    ? label === 'Position'
-                      ? activeObj.position[axisIdx]
-                      : label === 'Rotation'
-                        ? THREE.MathUtils.radToDeg(activeObj.rotation[axisIdx])
-                        : activeObj.scale[axisIdx]
-                    : label === 'Scale'
-                      ? 1
-                      : 0;
+                    return (
+                      <div key={axis} style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                        <span
+                          style={{
+                            fontSize: 9.5,
+                            fontWeight: 700,
+                            color: axis === 'X' ? '#ef4444' : axis === 'Y' ? '#22c55e' : '#3b82f6',
+                          }}
+                        >
+                          {axis}
+                        </span>
+                        <input
+                          className="input"
+                          type="number"
+                          value={Number(val.toFixed(2))}
+                          disabled={!activeObj}
+                          step={label === 'Rotation' ? 5 : 0.5}
+                          onChange={(e) => {
+                            if (!activeObj) return;
+                            const num = parseFloat(e.target.value) || 0;
+                            const newPos = [...activeObj.position] as [number, number, number];
+                            const newRot = [...activeObj.rotation] as [number, number, number];
+                            const newScale = [...activeObj.scale] as [number, number, number];
 
-                  return (
-                    <div key={axis} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <span
-                        style={{
-                          fontSize: 9,
-                          fontWeight: 700,
-                          color: axis === 'X' ? '#ef4444' : axis === 'Y' ? '#22c55e' : '#3b82f6',
-                        }}
-                      >
-                        {axis}
-                      </span>
-                      <input
-                        className="input"
-                        type="number"
-                        value={Number(val.toFixed(2))}
-                        disabled={!activeObj}
-                        step={label === 'Rotation' ? 5 : 0.5}
-                        onChange={(e) => {
-                          if (!activeObj) return;
-                          const num = parseFloat(e.target.value) || 0;
-                          const newPos = [...activeObj.position] as [number, number, number];
-                          const newRot = [...activeObj.rotation] as [number, number, number];
-                          const newScale = [...activeObj.scale] as [number, number, number];
-
-                          if (label === 'Position') {
-                            newPos[axisIdx] = num;
-                          } else if (label === 'Rotation') {
-                            newRot[axisIdx] = THREE.MathUtils.degToRad(num);
-                          } else if (label === 'Scale') {
-                            if (transformSubmode === 'scaleUniform') {
-                              newScale[0] = num;
-                              newScale[1] = num;
-                              newScale[2] = num;
-                            } else {
-                              newScale[axisIdx] = num;
+                            if (label === 'Position') {
+                              newPos[axisIdx] = num;
+                            } else if (label === 'Rotation') {
+                              newRot[axisIdx] = THREE.MathUtils.degToRad(num);
+                            } else if (label === 'Scale') {
+                              if (transformSubmode === 'scaleUniform') {
+                                newScale[0] = num;
+                                newScale[1] = num;
+                                newScale[2] = num;
+                              } else {
+                                newScale[axisIdx] = num;
+                              }
                             }
-                          }
-                          setTransform(activeObj.id, newPos, newRot, newScale);
-                        }}
-                        style={{
-                          width: 52,
-                          padding: '2px 4px',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 10.5,
-                          textAlign: 'right',
-                          borderRadius: 4,
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+                            setTransform(activeObj.id, newPos, newRot, newScale);
+                          }}
+                          style={{
+                            width: 48,
+                            padding: '3px 4px',
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: 10.5,
+                            textAlign: 'right',
+                            borderRadius: 6,
+                            border: '1px solid var(--color-border-mist)',
+                            backgroundColor: activeObj ? '#ffffff' : '#f8fafc',
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </React.Fragment>
             ))}
           </div>
         </main>

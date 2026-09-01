@@ -139,7 +139,12 @@ function ServiceTag({ name, status }: { name: string; status: string }) {
 
 export default function HomePage() {
   const router = useRouter();
-  const { cases, loading, fetchCases, createCase, deleteCase } = useCaseStore();
+  const cases = useCaseStore((s) => s.cases);
+  const loading = useCaseStore((s) => s.loading);
+  const fetchCases = useCaseStore((s) => s.fetchCases);
+  const createCase = useCaseStore((s) => s.createCase);
+  const deleteCase = useCaseStore((s) => s.deleteCase);
+
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [showNewCase, setShowNewCase] = useState(false);
   const [newCaseName, setNewCaseName] = useState('');
@@ -163,6 +168,7 @@ export default function HomePage() {
       .then(setHealth)
       .catch(() => {});
   }, [fetchCases]);
+
 
   const handleCreateCase = async () => {
     if (!newCaseName.trim()) return;
@@ -235,8 +241,9 @@ export default function HomePage() {
           {/* Health status badges & Navigation */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             {health &&
-              Object.entries(health.services).map(([name, svc]) => (
-                <ServiceTag key={name} name={name} status={svc.status} />
+              health.services &&
+              Object.entries(health.services).map(([name, svc]: [string, any]) => (
+                <ServiceTag key={name} name={name} status={svc?.status || 'unknown'} />
               ))}
             <button className="btn btn-secondary btn-sm" onClick={() => router.push('/editor')} style={{ gap: 6 }}>
               <Box size={14} color="var(--color-forest-ink)" /> 3D CAD Studio

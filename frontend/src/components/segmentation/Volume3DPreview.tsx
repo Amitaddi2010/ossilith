@@ -9,42 +9,48 @@ import { Loader2, Box } from 'lucide-react';
 
 interface Volume3DPreviewProps {
   caseId: string;
+  refreshKey?: number | string;
+  layerId?: string | null;
 }
 
-const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000');
+import { API_BASE } from '@/lib/api';
 
 function BoneMesh({ url, onLoaded }: { url: string; onLoaded: () => void }) {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const meshRef = useRef<THREE.Mesh>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    let retryTimer: NodeJS.Timeout;
+    const abortCtrl = new AbortController();
+    let currentGeo: THREE.BufferGeometry | null = null;
 
-    const loadMesh = () => {
-      const loader = new STLLoader();
-      loader.load(
-        url,
-        (geo) => {
-          if (cancelled) return;
-          geo.computeVertexNormals();
-          geo.center();
-          setGeometry(geo);
-          onLoaded();
-        },
-        undefined,
-        () => {
-          if (cancelled) return;
-          retryTimer = setTimeout(loadMesh, 2000);
+    const loadMesh = async () => {
+      try {
+        const res = await fetch(url, { signal: abortCtrl.signal, cache: 'no-cache' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const buffer = await res.arrayBuffer();
+        if (abortCtrl.signal.aborted) return;
+
+        const loader = new STLLoader();
+        const geo = loader.parse(buffer);
+        geo.computeVertexNormals();
+        geo.center();
+        currentGeo = geo;
+        setGeometry(geo);
+        onLoaded();
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.warn('Volume 3D Preview load failed (retrying in 3s):', err.message);
         }
-      );
+      }
     };
 
     loadMesh();
 
     return () => {
-      cancelled = true;
-      clearTimeout(retryTimer);
+      abortCtrl.abort();
+      if (currentGeo) {
+        currentGeo.dispose();
+      }
     };
   }, [url, onLoaded]);
 
@@ -74,9 +80,13 @@ function BoneMesh({ url, onLoaded }: { url: string; onLoaded: () => void }) {
   );
 }
 
-export default function Volume3DPreview({ caseId }: Volume3DPreviewProps) {
+export default function Volume3DPreview({ caseId, refreshKey = 0, layerId = null }: Volume3DPreviewProps) {
   const [loading, setLoading] = useState<boolean>(true);
-  const meshUrl = `${API_BASE}/api/cases/${caseId}/volume/mesh`;
+  const queryParams = new URLSearchParams();
+  if (refreshKey) queryParams.set('v', String(refreshKey));
+  if (layerId) queryParams.set('layer_id', layerId);
+  const queryString = queryParams.toString();
+  const meshUrl = `${API_BASE}/api/cases/${caseId}/volume/mesh${queryString ? `?${queryString}` : ''}`;
 
   return (
     <div
@@ -150,7 +160,12 @@ export default function Volume3DPreview({ caseId }: Volume3DPreviewProps) {
 
       <Canvas
         camera={{ position: [0, -200, 120], fov: 40 }}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
+        gl={{
+          antialias: true,
+          powerPreference: 'default',
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.2,
+        }}
       >
         <ambientLight intensity={0.6} color="#e8f0e8" />
         <hemisphereLight args={['#c8dcc8', '#a0b8a0', 0.4]} />
@@ -176,3 +191,4 @@ export default function Volume3DPreview({ caseId }: Volume3DPreviewProps) {
     </div>
   );
 }
+

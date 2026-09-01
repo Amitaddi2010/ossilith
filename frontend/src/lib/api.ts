@@ -2,10 +2,11 @@
  * Ossilith API client — typed fetch wrappers for all backend endpoints.
  */
 
-const API_BASE =
-  typeof window !== 'undefined'
-    ? ''
-    : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000');
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : 'http://127.0.0.1:8000');
 
 
 // ── Types ─────────────────────────────────────────────────
@@ -41,22 +42,42 @@ async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  });
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), 120000) : null;
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`API ${res.status}: ${body}`);
+  try {
+    const res = await fetch(url, {
+      signal: options.signal || controller?.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    });
+
+    if (timeoutId) clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const body = await res.text();
+      let errorMsg = `API ${res.status}`;
+      try {
+        const json = JSON.parse(body);
+        errorMsg = json.detail || json.message || errorMsg;
+      } catch {
+        if (body) errorMsg = `${errorMsg}: ${body}`;
+      }
+      throw new Error(errorMsg);
+    }
+
+    if (res.status === 204) return undefined as T;
+    return res.json();
+  } catch (err) {
+    if (timeoutId) clearTimeout(timeoutId);
+    throw err;
   }
-
-  if (res.status === 204) return undefined as T;
-  return res.json();
 }
+
+
 
 // ── Health ────────────────────────────────────────────────
 
@@ -94,10 +115,12 @@ export interface AutoSegPreset {
   structures_count: number;
   category: string;
   recommended_for: string;
+  engine?: string;
 }
 
 export interface AutoSegRequest {
   task?: string;
+  model_engine?: 'totalsegmentator' | 'monai';
   fast?: boolean;
   generate_stls?: boolean;
 }
@@ -109,6 +132,7 @@ export interface AutoSegResponse {
   case_id: string;
   series_id: string;
   task: string;
+  model_engine?: string;
   fast: boolean;
 }
 
@@ -135,36 +159,257 @@ export async function startAutoSegmentation(
   return apiFetch<AutoSegResponse>(`/api/cases/${caseId}/autoseg`, {
     method: 'POST',
     body: JSON.stringify({
-      task: data.task || 'total',
+      task: data.task || 'only_bones',
+      model_engine: data.model_engine || 'totalsegmentator',
       fast: data.fast ?? false,
       generate_stls: data.generate_stls ?? false,
     }),
   });
 }
 
+
 export async function getAutoSegStatus(caseId: string): Promise<AutoSegStatusResponse> {
   return apiFetch<AutoSegStatusResponse>(`/api/cases/${caseId}/autoseg/status`);
 }
 
-// ── SSE helper for job streaming ──────────────────────────
+// ── Advanced Surgical Segmentation APIs ───────────────────
+
+export interface RegionGrowParams {
+  axis: 'axial' | 'coronal' | 'sagittal';
+  slice_index: number;
+  point: [number, number];
+  min_hu?: number;
+  max_hu?: number;
+  search_radius_mm?: number;
+  fill_holes?: boolean;
+  positive?: boolean;
+}
+
+export interface IslandFilterParams {
+  operation: 'keep_largest' | 'remove_small' | 'split' | 'keep_selected';
+  min_size_voxels?: number;
+  axis?: 'axial' | 'coronal' | 'sagittal';
+  slice_index?: number;
+  point?: [number, number];
+}
+
+export interface ThresholdParams {
+  min_hu?: number;
+  max_hu?: number;
+  fill_holes?: boolean;
+  mode?: 'replace' | 'union' | 'intersect' | 'subtract';
+}
+
+export interface MorphologyParams {
+  operation: 'smooth' | 'fill_holes' | 'dilate' | 'erode';
+  radius?: number;
+}
+
+export interface SplitMaskParams {
+  mode?: 'islands' | 'plane';
+  min_size_voxels?: number;
+  max_components?: number;
+  axis?: 'axial' | 'coronal' | 'sagittal';
+  slice_index?: number;
+  delete_original?: boolean;
+  prefix?: string;
+}
+
+export interface SplitMaskCreatedLayer {
+  id: string;
+  name: string;
+  color: string;
+  voxel_count: number;
+  volume_cm3?: number;
+  mask_path: string;
+  status: string;
+}
+
+export interface SplitMaskResponse {
+  status: string;
+  mode: string;
+  parent_layer_id: string;
+  components_count: number;
+  created_layers: SplitMaskCreatedLayer[];
+}
+
+export async function splitMask(
+  caseId: string,
+  layerId: string,
+  params: SplitMaskParams
+): Promise<SplitMaskResponse> {
+  return apiFetch(`/api/cases/${caseId}/layers/${layerId}/split-mask`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function executeRegionGrow(
+  caseId: string,
+  layerId: string,
+  params: RegionGrowParams
+): Promise<{ status: string; voxel_count: number }> {
+  return apiFetch(`/api/cases/${caseId}/layers/${layerId}/region-grow`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function executeIslandFilter(
+  caseId: string,
+  layerId: string,
+  params: IslandFilterParams
+): Promise<any> {
+  return apiFetch(`/api/cases/${caseId}/layers/${layerId}/island-filter`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function executeThreshold(
+  caseId: string,
+  layerId: string,
+  params: ThresholdParams
+): Promise<{ status: string; voxel_count: number }> {
+  return apiFetch(`/api/cases/${caseId}/layers/${layerId}/threshold`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function executeMorphology(
+  caseId: string,
+  layerId: string,
+  params: MorphologyParams
+): Promise<{ status: string; voxel_count: number }> {
+  return apiFetch(`/api/cases/${caseId}/layers/${layerId}/morphology`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+// ── STL Mesh Shells & Multi-Bone Separation ───────────────
+
+export interface MeshShellInfo {
+  index: number;
+  vertex_count: number;
+  face_count: number;
+  volume_cm3: number;
+  surface_area_cm2: number;
+  is_watertight: boolean;
+  bounds: [[number, number, number], [number, number, number]];
+  centroid: [number, number, number];
+  bbox_dims: [number, number, number];
+}
+
+export interface SplitPartResult {
+  id: string;
+  case_id: string;
+  name: string;
+  filename: string;
+  vertex_count: number;
+  face_count: number;
+  volume_cm3: number;
+  surface_area_cm2: number;
+  is_watertight: boolean;
+  color: string;
+  download_url: string;
+}
+
+export async function listMeshShells(
+  caseId: string,
+  stlId: string
+): Promise<{ stl_id: string; total_shells: number; shells: MeshShellInfo[] }> {
+  return apiFetch(`/api/cases/${caseId}/stls/${stlId}/shells`);
+}
+
+export async function removeMeshShells(
+  caseId: string,
+  stlId: string,
+  options: { keep_indices?: number[]; remove_indices?: number[] }
+): Promise<{ status: string; remaining_shells: number; vertex_count: number; face_count: number }> {
+  return apiFetch(`/api/cases/${caseId}/stls/${stlId}/shells/remove`, {
+    method: 'POST',
+    body: JSON.stringify(options),
+  });
+}
+
+export async function splitMeshShells(
+  caseId: string,
+  stlId: string,
+  options: { min_faces?: number; max_parts?: number; delete_original?: boolean; keep_indices?: number[] } = {}
+): Promise<{ status: string; original_stl_id: string; split_count: number; parts: SplitPartResult[] }> {
+  return apiFetch(`/api/cases/${caseId}/stls/${stlId}/shells/split`, {
+    method: 'POST',
+    body: JSON.stringify(options),
+  });
+}
+
+export async function purgeDebrisShells(
+  caseId: string,
+  stlId: string,
+  options: { min_volume_ratio?: number; min_faces?: number } = {}
+): Promise<{ status: string; purged_count: number; remaining_shells: number; vertex_count: number; face_count: number }> {
+  return apiFetch(`/api/cases/${caseId}/stls/${stlId}/shells/purge-debris`, {
+    method: 'POST',
+    body: JSON.stringify(options),
+  });
+}
+
+// ── SSE helper for job streaming with polling fallback ──
 
 export function subscribeToJob(
   jobId: string,
   onMessage: (data: { progress: number; message: string; status: string; result_data?: any }) => void,
   onError?: (err: Event) => void
-): EventSource {
+): { close: () => void } {
+  let isDone = false;
   const es = new EventSource(`${API_BASE}/api/jobs/${jobId}/stream`);
+
+  const pollInterval = setInterval(async () => {
+    if (isDone) return;
+    try {
+      const job = await apiFetch<{ progress: number; message: string; status: string; result_data?: any }>(
+        `/api/jobs/${jobId}`
+      );
+      if (job && !isDone) {
+        onMessage(job);
+        if (job.status === 'completed' || job.status === 'failed') {
+          isDone = true;
+          clearInterval(pollInterval);
+          es.close();
+        }
+      }
+    } catch {}
+  }, 2000);
+
   es.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    onMessage(data);
-    if (data.status === 'completed' || data.status === 'failed') {
-      es.close();
-    }
+    try {
+      const data = JSON.parse(event.data);
+      onMessage(data);
+      if (data.status === 'completed' || data.status === 'failed') {
+        isDone = true;
+        clearInterval(pollInterval);
+        es.close();
+      }
+    } catch {}
   };
+
   es.onerror = (err) => {
-    onError?.(err);
-    es.close();
+    if (onError) onError(err);
+    // Don't close immediately on transient error; polling fallback keeps running
   };
-  return es;
+
+  return {
+    close: () => {
+      isDone = true;
+      clearInterval(pollInterval);
+      es.close();
+    },
+  };
 }
+
+
+
+
 

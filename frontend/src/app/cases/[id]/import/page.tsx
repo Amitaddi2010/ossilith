@@ -35,7 +35,7 @@ interface ParsedSeries {
 
 type WizardStep = 'upload' | 'series' | 'preview' | 'building';
 
-const API_BASE = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000');
+import { API_BASE } from '@/lib/api';
 
 /* ── Import Wizard (Ease Health Theme) ─────────────────── */
 
@@ -47,6 +47,7 @@ export default function ImportPage() {
   const [step, setStep] = useState<WizardStep>('upload');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('Uploading DICOM study...');
   const [seriesList, setSeriesList] = useState<ParsedSeries[]>([]);
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,23 +66,75 @@ export default function ImportPage() {
     async (acceptedFiles: File[]) => {
       setUploading(true);
       setError(null);
-      setUploadProgress(0);
+      setUploadProgress(5);
+      setUploadStatus('Uploading DICOM files to server...');
 
       try {
         const formData = new FormData();
         acceptedFiles.forEach((file) => formData.append('files', file));
 
-        const res = await fetch(`${API_BASE}/api/cases/${caseId}/upload`, {
-          method: 'POST',
-          body: formData,
+        const data = await new Promise<any>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `${API_BASE}/api/cases/${caseId}/upload`);
+
+          let validationInterval: ReturnType<typeof setInterval> | null = null;
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.min(85, Math.round((event.loaded / event.total) * 85));
+              const loadedMB = (event.loaded / (1024 * 1024)).toFixed(1);
+              const totalMB = (event.total / (1024 * 1024)).toFixed(1);
+              setUploadProgress(Math.max(5, percent));
+              setUploadStatus(`Uploading files... ${loadedMB} MB / ${totalMB} MB (${percent}%)`);
+            }
+          };
+
+          xhr.upload.onload = () => {
+            setUploadProgress(88);
+            setUploadStatus('Validating DICOM headers & extracting series...');
+            let p = 88;
+            validationInterval = setInterval(() => {
+              p = Math.min(98, p + 1);
+              setUploadProgress(p);
+              if (p > 92) {
+                setUploadStatus('Parsing slice coordinates & spatial orientation...');
+              }
+            }, 250);
+          };
+
+          xhr.onload = () => {
+            if (validationInterval) clearInterval(validationInterval);
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const json = JSON.parse(xhr.responseText);
+                resolve(json);
+              } catch {
+                reject(new Error('Failed to parse server response'));
+              }
+            } else {
+              try {
+                const body = JSON.parse(xhr.responseText);
+                let errMsg = `Upload failed (HTTP ${xhr.status})`;
+                if (typeof body.detail === 'string') errMsg = body.detail;
+                else if (body.detail?.message) errMsg = body.detail.message;
+                else if (Array.isArray(body.detail)) {
+                  errMsg = body.detail.map((e: any) => e.msg || e.message || JSON.stringify(e)).join(', ');
+                }
+                reject(new Error(errMsg));
+              } catch {
+                reject(new Error(`Upload failed with status HTTP ${xhr.status}`));
+              }
+            }
+          };
+
+          xhr.onerror = () => {
+            if (validationInterval) clearInterval(validationInterval);
+            reject(new Error('Network error during file upload'));
+          };
+
+          xhr.send(formData);
         });
 
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({ detail: 'Upload failed' }));
-          throw new Error(body.detail || `HTTP ${res.status}`);
-        }
-
-        const data = await res.json();
         const list: ParsedSeries[] = data.series || [];
         setSeriesList(list);
         if (list.length > 0) {
@@ -89,7 +142,8 @@ export default function ImportPage() {
           setPreviewSlice(Math.floor(list[0].slice_count / 2));
         }
         setUploadProgress(100);
-        setStep('series');
+        setUploadStatus('Upload complete!');
+        setTimeout(() => setStep('series'), 300);
       } catch (e) {
         setError((e as Error).message);
       } finally {
@@ -145,6 +199,27 @@ export default function ImportPage() {
       es.onerror = () => {
         es.close();
         setBuildMessage('Reconstruction processing in background...');
+        const pollTimer = setInterval(async () => {
+          try {
+            const statusRes = await fetch(`${API_BASE}/api/jobs/${jobId}/status`);
+            if (statusRes.ok) {
+              const statusData = await statusRes.json();
+              setBuildProgress(statusData.progress || 50);
+              if (statusData.message) setBuildMessage(statusData.message);
+              if (statusData.status === 'completed') {
+                clearInterval(pollTimer);
+                setBuildProgress(100);
+                router.push(`/cases/${caseId}/segment`);
+              } else if (statusData.status === 'failed') {
+                clearInterval(pollTimer);
+                setError(statusData.error || 'Volume reconstruction failed');
+                setStep('series');
+              }
+            }
+          } catch {
+            // Keep polling
+          }
+        }, 1000);
       };
     } catch (e) {
       setError((e as Error).message);
@@ -180,7 +255,7 @@ export default function ImportPage() {
         </div>
 
         {/* Step indicator pills */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {(['upload', 'series', 'preview', 'building'] as WizardStep[]).map((s, i) => {
             const steps: WizardStep[] = ['upload', 'series', 'preview', 'building'];
             const currentIndex = steps.indexOf(step);
@@ -190,9 +265,35 @@ export default function ImportPage() {
               <div
                 key={s}
                 className={isCurrent ? 'pill-badge-forest' : isDone ? 'pill-badge-sage' : 'pill-badge'}
-                style={{ fontSize: 11, textTransform: 'capitalize' }}
+                style={{
+                  fontSize: 11.5,
+                  padding: '5px 12px',
+                  borderRadius: 20,
+                  textTransform: 'capitalize',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontWeight: isCurrent ? 600 : 500,
+                  transition: 'all 150ms ease',
+                }}
               >
-                {i + 1}. {s}
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    backgroundColor: isCurrent ? 'rgba(255,255,255,0.25)' : isDone ? 'rgba(18,53,36,0.12)' : 'rgba(0,0,0,0.06)',
+                    color: isCurrent ? '#fff' : 'var(--color-forest-ink)',
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <span>{s}</span>
               </div>
             );
           })}
@@ -242,17 +343,40 @@ export default function ImportPage() {
             >
               <input {...getInputProps()} />
               {uploading ? (
-                <>
+                <div style={{ maxWidth: 420, margin: '0 auto' }}>
                   <Loader2
                     size={42}
                     color="var(--color-forest-ink)"
                     style={{ margin: '0 auto 16px', animation: 'spin 1s linear infinite' }}
                   />
-                  <h4 style={{ marginBottom: 8 }}>Validating DICOM Metadata...</h4>
-                  <div className="progress-bar" style={{ maxWidth: 300, margin: '14px auto 0' }}>
-                    <div className="progress-bar-fill" style={{ width: `${uploadProgress}%` }} />
+                  <h4 style={{ marginBottom: 6, fontSize: 16, color: 'var(--color-forest-ink)' }}>
+                    {uploadStatus}
+                  </h4>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: 12,
+                      color: 'var(--color-muted)',
+                      margin: '12px auto 6px',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    <span>Import Progress</span>
+                    <span style={{ fontWeight: 600, color: 'var(--color-forest-ink)' }}>
+                      {uploadProgress}%
+                    </span>
                   </div>
-                </>
+                  <div className="progress-bar" style={{ width: '100%', height: 8 }}>
+                    <div
+                      className="progress-bar-fill"
+                      style={{
+                        width: `${Math.max(5, uploadProgress)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
               ) : (
                 <>
                   <div

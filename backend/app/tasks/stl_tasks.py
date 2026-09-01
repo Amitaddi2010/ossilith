@@ -118,9 +118,10 @@ def generate_stl_task(self, case_id: str, layer_id: str, job_id: str, mask_path:
         target_faces = 150000
         if len(mesh.faces) > target_faces:
             try:
-                mesh = mesh.simplify_quadric_decimation(target_faces)
+                mesh = mesh.simplify_quadric_decimation(face_count=target_faces)
             except Exception as e:
                 logger.warning(f"Decimation skipped: {e}")
+
 
         mesh.fix_normals()
 

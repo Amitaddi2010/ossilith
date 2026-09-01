@@ -29,9 +29,11 @@ export const useCaseStore = create<CaseStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const res = await api.listCases();
-      set({ cases: res.cases, loading: false });
+      set({ cases: res?.cases || [], loading: false });
     } catch (e) {
       set({ error: (e as Error).message, loading: false });
+    } finally {
+      set({ loading: false });
     }
   },
 
@@ -42,8 +44,11 @@ export const useCaseStore = create<CaseStore>((set, get) => ({
       set({ currentCase: c, loading: false });
     } catch (e) {
       set({ error: (e as Error).message, loading: false });
+    } finally {
+      set({ loading: false });
     }
   },
+
 
   createCase: async (name: string, description?: string) => {
     set({ loading: true, error: null });

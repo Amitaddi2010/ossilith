@@ -31,10 +31,12 @@ class AutoSegPreset(BaseModel):
     structures_count: int
     category: str
     recommended_for: str
+    engine: str = "TotalSegmentator"
 
 
 class AutoSegRequest(BaseModel):
-    task: str = Field(default="total", description="TotalSegmentator task name (e.g. 'total', 'body', 'bones', 'organs', 'tissue_types', 'appendicular_bones')")
+    task: str = Field(default="only_bones", description="Segmentation task (e.g. 'only_bones', 'total', 'bones', 'appendicular_bones', 'monai_wholebody', 'monai_vista3d')")
+    model_engine: str = Field(default="totalsegmentator", description="Model inference engine ('totalsegmentator' or 'monai')")
     fast: bool = Field(default=False, description="Run in fast mode (lower resolution for faster inference)")
     generate_stls: bool = Field(default=False, description="Automatically queue 3D STL generation for all extracted structures")
 
@@ -46,6 +48,7 @@ class AutoSegResponse(BaseModel):
     case_id: str
     series_id: str
     task: str
+    model_engine: str
     fast: bool
 
 
@@ -53,20 +56,22 @@ class AutoSegResponse(BaseModel):
 
 AVAILABLE_TASKS: List[AutoSegPreset] = [
     AutoSegPreset(
-        id="total",
-        name="All 117+ Anatomical Structures (Total)",
-        description="Comprehensive full-body AI segmentation of all major organs, skeletal framework, vascular structures, and key muscles.",
-        structures_count=117,
-        category="Comprehensive",
-        recommended_for="Full CT scans & multi-system surgical planning",
+        id="only_bones",
+        name="Only Bones (Unified Complete Skeleton)",
+        description="Extracts and fuses the complete skeletal framework (cranial vault, spine, ribs, pelvis, and limbs) into a single contiguous, solid 3D bone target.",
+        structures_count=1,
+        category="Orthopedic (Recommended)",
+        recommended_for="Primary orthopedic bone segmentation, osteotomy planning, and 3D printing",
+        engine="TotalSegmentator / Intensity",
     ),
     AutoSegPreset(
         id="bones",
-        name="Skeletal Framework & Bones",
-        description="Extracts cranial vault, spine (C/T/L/S vertebrae), ribs, pelvis, femurs, tibias, and shoulder girdle with zero-drift accuracy.",
+        name="Skeletal Framework & Bones (Individual)",
+        description="Discrete multi-structure segmentation of spine (C/T/L/S vertebrae), ribs, pelvis, femurs, tibias, and shoulder girdle as separate layers.",
         structures_count=42,
         category="Orthopedic",
-        recommended_for="Osteotomies, joint arthroplasty, and trauma reconstruction",
+        recommended_for="Osteotomies, joint arthroplasty, and complex trauma reconstruction",
+        engine="TotalSegmentator",
     ),
     AutoSegPreset(
         id="appendicular_bones",
@@ -75,6 +80,34 @@ AVAILABLE_TASKS: List[AutoSegPreset] = [
         structures_count=16,
         category="Orthopedic",
         recommended_for="Limb deformity correction & limb-sparing surgery",
+        engine="TotalSegmentator",
+    ),
+    AutoSegPreset(
+        id="monai_wholebody",
+        name="MONAI WholeBody CT Auto3DSeg",
+        description="Deep learning segmentation powered by Project MONAI's SwinUNETR / SegResNet whole-body CT architecture (trained on 100+ anatomical targets).",
+        structures_count=104,
+        category="MONAI Deep Learning",
+        recommended_for="Comprehensive multi-organ and skeletal contouring with MONAI",
+        engine="MONAI 1.6",
+    ),
+    AutoSegPreset(
+        id="monai_vista3d",
+        name="MONAI VISTA-3D Foundation Model",
+        description="NVIDIA & MONAI's 3D foundation model for zero-shot and interactive multi-class anatomy segmentation directly from CT voxels.",
+        structures_count=120,
+        category="MONAI Deep Learning",
+        recommended_for="Next-generation 3D foundation model anatomy mapping",
+        engine="MONAI 1.6",
+    ),
+    AutoSegPreset(
+        id="total",
+        name="All 117+ Anatomical Structures (Total)",
+        description="Comprehensive full-body AI segmentation of all major organs, skeletal framework, vascular structures, and key muscles.",
+        structures_count=117,
+        category="Comprehensive",
+        recommended_for="Full CT scans & multi-system surgical planning",
+        engine="TotalSegmentator",
     ),
     AutoSegPreset(
         id="organs",
@@ -83,6 +116,7 @@ AVAILABLE_TASKS: List[AutoSegPreset] = [
         structures_count=24,
         category="Visceral",
         recommended_for="General surgery, tumor resection margins & organ volumetry",
+        engine="TotalSegmentator",
     ),
     AutoSegPreset(
         id="tissue_types",
@@ -91,6 +125,7 @@ AVAILABLE_TASKS: List[AutoSegPreset] = [
         structures_count=6,
         category="Tissue Analysis",
         recommended_for="Density profiling, bone mineral assessment & soft tissue margins",
+        engine="TotalSegmentator / Intensity",
     ),
     AutoSegPreset(
         id="lung_vessels",
@@ -99,6 +134,7 @@ AVAILABLE_TASKS: List[AutoSegPreset] = [
         structures_count=8,
         category="Thoracic",
         recommended_for="Thoracic oncology & airway stent planning",
+        engine="TotalSegmentator",
     ),
     AutoSegPreset(
         id="body",
@@ -107,8 +143,10 @@ AVAILABLE_TASKS: List[AutoSegPreset] = [
         structures_count=1,
         category="Surface",
         recommended_for="Reference alignment & patient positioning",
+        engine="TotalSegmentator",
     ),
 ]
+
 
 
 # ── Endpoints ──────────────────────────────────────────────
@@ -196,17 +234,20 @@ async def start_auto_segmentation(
         body.fast,
         None,
         body.generate_stls,
+        body.model_engine,
     )
 
     return AutoSegResponse(
         job_id=str(job.id),
         status="pending",
-        message="TotalSegmentator auto-segmentation job queued successfully.",
+        message=f"{'MONAI' if body.model_engine == 'monai' else 'TotalSegmentator'} auto-segmentation job queued successfully.",
         case_id=str(case_id),
         series_id=str(series.id),
         task=body.task,
+        model_engine=body.model_engine,
         fast=body.fast,
     )
+
 
 
 @router.get("/{case_id}/autoseg/status")

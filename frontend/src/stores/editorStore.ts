@@ -32,9 +32,26 @@ export type EditorTool =
   | 'connector'
   | 'tkr'
   | 'measure-distance'
-  | 'measure-angle';
+  | 'measure-angle'
+  | 'mechanical-axis'
+  | 'screw-picker'
+  | 'islands'
+  | 'region-grow';
+
+export interface MeshShell {
+  index: number;
+  vertex_count: number;
+  face_count: number;
+  volume_cm3: number;
+  surface_area_cm2: number;
+  is_watertight: boolean;
+  bounds: [[number, number, number], [number, number, number]];
+  centroid: [number, number, number];
+  bbox_dims: [number, number, number];
+}
 
 export type TransformSubmode = 'translate' | 'rotate' | 'scaleUniform' | 'scaleNonUniform';
+export type MechanicalAxisSubtype = 'hka' | 'mpta' | 'mldfa';
 
 export type ConnectorShape = 'cylinder' | 'cuboid' | 'torus' | 'sphere' | 'cone';
 export type ConnectorOperation = 'join' | 'subtract' | 'intersection';
@@ -43,10 +60,23 @@ export type RenderMode = 'solid' | 'wireframe' | 'xray';
 
 export interface Measurement3D {
   id: string;
-  type: 'distance' | 'angle';
+  type: 'distance' | 'angle' | 'mechanical-axis' | 'screw';
+  subtype?: MechanicalAxisSubtype | 'generic';
   points: THREE.Vector3[];
   value: number; // mm or degrees
   label: string;
+  classification?: string; // e.g. "3.8° Varus Deformity", "Within Cortical Margin"
+  hasBreach?: boolean;
+}
+
+export interface GhostMirrorOverlay {
+  visible: boolean;
+  sourceId: string;
+  name: string;
+  geometry: THREE.BufferGeometry;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
 }
 
 export interface Annotation3D {
@@ -77,8 +107,8 @@ export interface MeshStats {
 export interface EditOperation {
   type: string;
   timestamp: number;
-  before: Map<string, Partial<STLObject>>;
-  after: Map<string, Partial<STLObject>>;
+  before: Map<string, STLObject | null>;
+  after: Map<string, STLObject | null>;
 }
 
 export interface BreachAlert {
@@ -165,9 +195,20 @@ interface EditorStore {
   measurements: Measurement3D[];
   measurementDraftPoints: THREE.Vector3[];
 
-  // Undo/redo
+  // Undo/redo & Clipboard
   undoStack: EditOperation[];
   redoStack: EditOperation[];
+  clipboard: STLObject[];
+
+  // Actions — Clipboard & Duplication
+  copySelected: () => STLObject[];
+  pasteClipboard: () => string[];
+  duplicateSelected: () => string[];
+  deleteSelected: () => void;
+
+  // Hover tracking
+  hoveredObjectId: string | null;
+  setHoveredObjectId: (id: string | null) => void;
 
   // Touch & Mobile Viewport Navigation
   touchGestureMode: 'rotate' | 'pan';
@@ -176,8 +217,8 @@ interface EditorStore {
   triggerZoomToFit: () => void;
 
   // Actions — objects
-  addObject: (obj: STLObject) => void;
-  removeObject: (id: string) => void;
+  addObject: (obj: STLObject, recordUndo?: boolean) => void;
+  removeObject: (id: string, recordUndo?: boolean) => void;
   updateObject: (id: string, updates: Partial<STLObject>) => void;
   clearObjects: () => void;
 
@@ -217,6 +258,49 @@ interface EditorStore {
   // Actions — cut plane
   setCutPlanePosition: (pos: [number, number, number]) => void;
   setCutPlaneRotation: (rot: [number, number, number]) => void;
+
+  // Islands / Shells Feature
+  shells: MeshShell[];
+  selectedShellIndices: number[];
+  hoveredShellIndex: number | null;
+  islandsLoading: boolean;
+  colorByShellsMode: boolean;
+  minSplitFaces: number;
+  faceToShellMap: Map<string, Uint32Array>;
+  setShells: (shells: MeshShell[]) => void;
+  setSelectedShellIndices: (indices: number[]) => void;
+  toggleShellSelection: (index: number) => void;
+  setHoveredShellIndex: (index: number | null) => void;
+  setIslandsLoading: (loading: boolean) => void;
+  setColorByShellsMode: (enabled: boolean) => void;
+  setMinSplitFaces: (val: number) => void;
+  setFaceToShellMap: (objId: string, map: Uint32Array) => void;
+
+  // Mesh Surface Region-Growing Tool
+  meshRegionGrowAngleDeg: number;
+  meshRegionGrowRadiusMm: number;
+  meshRegionGrowSelectedFaces: number[];
+  meshRegionGrowSeedFace: number | null;
+  setMeshRegionGrowAngleDeg: (deg: number) => void;
+  setMeshRegionGrowRadiusMm: (r: number) => void;
+  setMeshRegionGrowSelectedFaces: (faces: number[]) => void;
+  setMeshRegionGrowSeedFace: (faceIdx: number | null) => void;
+  clearMeshRegionGrow: () => void;
+
+  // Phase 2: Mechanical Axis Submode
+  mechanicalAxisSubmode: MechanicalAxisSubtype;
+  setMechanicalAxisSubmode: (submode: MechanicalAxisSubtype) => void;
+
+  // Phase 2: 1-Click Ghost Mirror Overlay
+  ghostOverlay: GhostMirrorOverlay | null;
+  toggleMirrorGhostOverlay: () => void;
+  clearGhostOverlay: () => void;
+
+  // Phase 2: Measurement Log & 1-Click Snapshot
+  showMeasurementLog: boolean;
+  setShowMeasurementLog: (show: boolean) => void;
+  snapshotExportTrigger: number;
+  triggerSnapshotExport: () => void;
 
   // Actions — measurements
   addMeasurementDraftPoint: (point: THREE.Vector3) => void;
@@ -298,6 +382,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   // TKR Planning
   tkrState: DEFAULT_TKR_STATE,
 
+  // Hover tracking
+  hoveredObjectId: null,
+  setHoveredObjectId: (id) => set({ hoveredObjectId: id }),
+
   // Touch & Mobile Viewport Navigation
   touchGestureMode: 'rotate',
   setTouchGestureMode: (mode) => set({ touchGestureMode: mode }),
@@ -305,27 +393,147 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   triggerZoomToFit: () => set((state) => ({ zoomToFitTrigger: state.zoomToFitTrigger + 1 })),
 
 
+  // Islands / Shells Feature
+  shells: [],
+  selectedShellIndices: [],
+  hoveredShellIndex: null,
+  islandsLoading: false,
+  colorByShellsMode: true,
+  minSplitFaces: 150,
+  faceToShellMap: new Map(),
+  setShells: (shells) => set({ shells }),
+  setSelectedShellIndices: (indices) => set({ selectedShellIndices: indices }),
+  toggleShellSelection: (index) =>
+    set((state) => {
+      const exists = state.selectedShellIndices.includes(index);
+      return {
+        selectedShellIndices: exists
+          ? state.selectedShellIndices.filter((i) => i !== index)
+          : [...state.selectedShellIndices, index],
+      };
+    }),
+  setHoveredShellIndex: (idx) => set({ hoveredShellIndex: idx }),
+  setIslandsLoading: (loading) => set({ islandsLoading: loading }),
+  setColorByShellsMode: (enabled) => set({ colorByShellsMode: enabled }),
+  setMinSplitFaces: (val) => set({ minSplitFaces: val }),
+  setFaceToShellMap: (objId, map) =>
+    set((state) => {
+      const next = new Map(state.faceToShellMap);
+      next.set(objId, map);
+      return { faceToShellMap: next };
+    }),
+
+
+  // Mesh Surface Region-Growing Tool
+  meshRegionGrowAngleDeg: 45.0,
+  meshRegionGrowRadiusMm: 30.0,
+  meshRegionGrowSelectedFaces: [],
+  meshRegionGrowSeedFace: null,
+  setMeshRegionGrowAngleDeg: (deg) => set({ meshRegionGrowAngleDeg: deg }),
+  setMeshRegionGrowRadiusMm: (r) => set({ meshRegionGrowRadiusMm: r }),
+  setMeshRegionGrowSelectedFaces: (faces) => set({ meshRegionGrowSelectedFaces: faces }),
+  setMeshRegionGrowSeedFace: (faceIdx) => set({ meshRegionGrowSeedFace: faceIdx }),
+  clearMeshRegionGrow: () => set({ meshRegionGrowSelectedFaces: [], meshRegionGrowSeedFace: null }),
+
+  // Phase 2: Mechanical Axis Submode
+  mechanicalAxisSubmode: 'hka',
+  setMechanicalAxisSubmode: (submode) => set({ mechanicalAxisSubmode: submode, measurementDraftPoints: [] }),
+
+  // Phase 2: 1-Click Ghost Mirror Overlay
+  ghostOverlay: null,
+  toggleMirrorGhostOverlay: () => {
+    const state = get();
+    if (state.ghostOverlay) {
+      set({ ghostOverlay: null });
+      return;
+    }
+    const sel = Array.from(state.selectedIds);
+    const targetObj = sel.length > 0 ? state.objects.get(sel[0]) : Array.from(state.objects.values())[0];
+    if (!targetObj || !targetObj.geometry) return;
+
+    // Flip along X (Sagittal midline mirror)
+    const clonedGeo = targetObj.geometry.clone();
+    set({
+      ghostOverlay: {
+        visible: true,
+        sourceId: targetObj.id,
+        name: `Ghost Mirror: ${targetObj.name}`,
+        geometry: clonedGeo,
+        position: [...targetObj.position] as [number, number, number],
+        rotation: [...targetObj.rotation] as [number, number, number],
+        scale: [-targetObj.scale[0], targetObj.scale[1], targetObj.scale[2]] as [number, number, number],
+      },
+    });
+  },
+  clearGhostOverlay: () => set({ ghostOverlay: null }),
+
+  // Phase 2: Measurement Log & 1-Click Snapshot
+  showMeasurementLog: false,
+  setShowMeasurementLog: (show) => set({ showMeasurementLog: show }),
+  snapshotExportTrigger: 0,
+  triggerSnapshotExport: () => set((state) => ({ snapshotExportTrigger: state.snapshotExportTrigger + 1 })),
+
   measurements: [],
   measurementDraftPoints: [],
   undoStack: [],
   redoStack: [],
-
+  clipboard: [],
 
   // ── Objects ───────────────────────────────────────────
 
-  addObject: (obj) =>
+  addObject: (obj, recordUndo = true) =>
     set((state) => {
       const next = new Map(state.objects);
       next.set(obj.id, obj);
-      return { objects: next };
+      const sel = new Set([obj.id]);
+
+      if (recordUndo) {
+        const before = new Map<string, STLObject | null>([[obj.id, null]]);
+        const after = new Map<string, STLObject | null>([[obj.id, { ...obj }]]);
+        const op: EditOperation = {
+          type: 'add',
+          timestamp: Date.now(),
+          before,
+          after,
+        };
+        return {
+          objects: next,
+          selectedIds: sel,
+          zoomToFitTrigger: state.zoomToFitTrigger + 1,
+          undoStack: [...state.undoStack, op],
+          redoStack: [],
+        };
+      }
+
+      // Auto-trigger zoom-to-fit when a new model is added
+      return { objects: next, selectedIds: sel, zoomToFitTrigger: state.zoomToFitTrigger + 1 };
     }),
 
-  removeObject: (id) =>
+  removeObject: (id, recordUndo = true) =>
     set((state) => {
+      const obj = state.objects.get(id);
       const next = new Map(state.objects);
       next.delete(id);
       const sel = new Set(state.selectedIds);
       sel.delete(id);
+
+      if (recordUndo && obj) {
+        const before = new Map<string, STLObject | null>([[id, { ...obj }]]);
+        const after = new Map<string, STLObject | null>([[id, null]]);
+        const op: EditOperation = {
+          type: 'delete',
+          timestamp: Date.now(),
+          before,
+          after,
+        };
+        return {
+          objects: next,
+          selectedIds: sel,
+          undoStack: [...state.undoStack, op],
+          redoStack: [],
+        };
+      }
+
       return { objects: next, selectedIds: sel };
     }),
 
@@ -338,7 +546,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }),
 
   clearObjects: () =>
-    set({ objects: new Map(), selectedIds: new Set() }),
+    set({ objects: new Map(), selectedIds: new Set(), undoStack: [], redoStack: [] }),
 
   // ── Selection ─────────────────────────────────────────
 
@@ -449,6 +657,154 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   clearAllMeasurements: () =>
     set({ measurements: [], measurementDraftPoints: [] }),
 
+  // ── Clipboard & Duplication ────────────────────────────
+
+  copySelected: () => {
+    const state = get();
+    const sel = state.selectedIds;
+    const items: STLObject[] = [];
+    sel.forEach((id) => {
+      const obj = state.objects.get(id);
+      if (obj) {
+        items.push({
+          ...obj,
+          geometry: obj.geometry.clone(),
+          position: [...obj.position] as [number, number, number],
+          rotation: [...obj.rotation] as [number, number, number],
+          scale: [...obj.scale] as [number, number, number],
+        });
+      }
+    });
+    set({ clipboard: items });
+    return items;
+  },
+
+  pasteClipboard: () => {
+    const state = get();
+    if (!state.clipboard || state.clipboard.length === 0) return [];
+
+    const before = new Map<string, STLObject | null>();
+    const after = new Map<string, STLObject | null>();
+    const newIds: string[] = [];
+    const next = new Map(state.objects);
+
+    state.clipboard.forEach((item, index) => {
+      const newId = `stl_copy_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 6)}`;
+      const newObj: STLObject = {
+        ...item,
+        id: newId,
+        name: `${item.name} (Copy)`,
+        geometry: item.geometry.clone(),
+        position: [item.position[0] + 15, item.position[1] + 15, item.position[2]],
+        rotation: [...item.rotation] as [number, number, number],
+        scale: [...item.scale] as [number, number, number],
+      };
+      next.set(newId, newObj);
+      before.set(newId, null);
+      after.set(newId, newObj);
+      newIds.push(newId);
+    });
+
+    const op: EditOperation = {
+      type: 'paste',
+      timestamp: Date.now(),
+      before,
+      after,
+    };
+
+    set({
+      objects: next,
+      selectedIds: new Set(newIds),
+      undoStack: [...state.undoStack, op],
+      redoStack: [],
+    });
+
+    return newIds;
+  },
+
+  duplicateSelected: () => {
+    const state = get();
+    const sel = state.selectedIds;
+    if (sel.size === 0) return [];
+
+    const before = new Map<string, STLObject | null>();
+    const after = new Map<string, STLObject | null>();
+    const newIds: string[] = [];
+    const next = new Map(state.objects);
+
+    let idx = 0;
+    sel.forEach((id) => {
+      const obj = state.objects.get(id);
+      if (obj) {
+        const newId = `stl_dup_${Date.now()}_${idx++}_${Math.random().toString(36).slice(2, 6)}`;
+        const newObj: STLObject = {
+          ...obj,
+          id: newId,
+          name: `${obj.name} (Copy)`,
+          geometry: obj.geometry.clone(),
+          position: [obj.position[0] + 15, obj.position[1] + 15, obj.position[2]],
+          rotation: [...obj.rotation] as [number, number, number],
+          scale: [...obj.scale] as [number, number, number],
+        };
+        next.set(newId, newObj);
+        before.set(newId, null);
+        after.set(newId, newObj);
+        newIds.push(newId);
+      }
+    });
+
+    if (newIds.length === 0) return [];
+
+    const op: EditOperation = {
+      type: 'duplicate',
+      timestamp: Date.now(),
+      before,
+      after,
+    };
+
+    set({
+      objects: next,
+      selectedIds: new Set(newIds),
+      undoStack: [...state.undoStack, op],
+      redoStack: [],
+    });
+
+    return newIds;
+  },
+
+  deleteSelected: () => {
+    const state = get();
+    const sel = state.selectedIds;
+    if (sel.size === 0) return;
+
+    const before = new Map<string, STLObject | null>();
+    const after = new Map<string, STLObject | null>();
+    const next = new Map(state.objects);
+
+    sel.forEach((id) => {
+      const obj = state.objects.get(id);
+      if (obj) {
+        before.set(id, { ...obj });
+        after.set(id, null);
+        next.delete(id);
+      }
+    });
+
+    const op: EditOperation = {
+      type: 'delete',
+      timestamp: Date.now(),
+      before,
+      after,
+    };
+
+    set({
+      objects: next,
+      selectedIds: new Set(),
+      undoStack: [...state.undoStack, op],
+      redoStack: [],
+    });
+  },
+
   // ── Transforms (tracked for undo) ─────────────────────
 
   setTransform: (id, position, rotation, scale) => {
@@ -456,15 +812,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const obj = state.objects.get(id);
     if (!obj) return;
 
-    const before = new Map<string, Partial<STLObject>>();
-    before.set(id, {
+    const beforeObj: STLObject = {
+      ...obj,
       position: [...obj.position] as [number, number, number],
       rotation: [...obj.rotation] as [number, number, number],
       scale: [...obj.scale] as [number, number, number],
-    });
+    };
+    const afterObj: STLObject = { ...obj, position, rotation, scale };
 
-    const after = new Map<string, Partial<STLObject>>();
-    after.set(id, { position, rotation, scale });
+    const before = new Map<string, STLObject | null>([[id, beforeObj]]);
+    const after = new Map<string, STLObject | null>([[id, afterObj]]);
 
     const op: EditOperation = {
       type: 'transform',
@@ -475,8 +832,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     set((state) => {
       const next = new Map(state.objects);
-      const o = next.get(id);
-      if (o) next.set(id, { ...o, position, rotation, scale });
+      next.set(id, afterObj);
       return {
         objects: next,
         undoStack: [...state.undoStack, op],
@@ -490,15 +846,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const obj = state.objects.get(id);
     if (!obj) return;
 
-    const before = new Map<string, Partial<STLObject>>();
-    before.set(id, {
+    const beforeObj: STLObject = {
+      ...obj,
       position: [...obj.position] as [number, number, number],
       rotation: [...obj.rotation] as [number, number, number],
       scale: [...obj.scale] as [number, number, number],
-    });
+    };
+    const afterObj: STLObject = { ...obj, position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] };
 
-    const after = new Map<string, Partial<STLObject>>();
-    after.set(id, { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] });
+    const before = new Map<string, STLObject | null>([[id, beforeObj]]);
+    const after = new Map<string, STLObject | null>([[id, afterObj]]);
 
     const op: EditOperation = {
       type: 'reset_transform',
@@ -509,8 +866,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     set((state) => {
       const next = new Map(state.objects);
-      const o = next.get(id);
-      if (o) next.set(id, { ...o, position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] });
+      next.set(id, afterObj);
       return {
         objects: next,
         undoStack: [...state.undoStack, op],
@@ -533,14 +889,20 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     const op = state.undoStack[state.undoStack.length - 1];
     const next = new Map(state.objects);
+    const restoredSel = new Set<string>();
 
     op.before.forEach((snapshot, id) => {
-      const obj = next.get(id);
-      if (obj) next.set(id, { ...obj, ...snapshot });
+      if (snapshot === null) {
+        next.delete(id);
+      } else {
+        next.set(id, snapshot);
+        restoredSel.add(id);
+      }
     });
 
     set({
       objects: next,
+      selectedIds: restoredSel.size > 0 ? restoredSel : state.selectedIds,
       undoStack: state.undoStack.slice(0, -1),
       redoStack: [...state.redoStack, op],
     });
@@ -552,14 +914,20 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     const op = state.redoStack[state.redoStack.length - 1];
     const next = new Map(state.objects);
+    const redoneSel = new Set<string>();
 
     op.after.forEach((snapshot, id) => {
-      const obj = next.get(id);
-      if (obj) next.set(id, { ...obj, ...snapshot });
+      if (snapshot === null) {
+        next.delete(id);
+      } else {
+        next.set(id, snapshot);
+        redoneSel.add(id);
+      }
     });
 
     set({
       objects: next,
+      selectedIds: redoneSel.size > 0 ? redoneSel : state.selectedIds,
       redoStack: state.redoStack.slice(0, -1),
       undoStack: [...state.undoStack, op],
     });

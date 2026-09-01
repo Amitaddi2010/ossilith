@@ -20,5 +20,10 @@ celery.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     # Auto-discover tasks in app.tasks package
-    imports=["app.tasks.volume_tasks", "app.tasks.stl_tasks"],
+    imports=[
+        "app.tasks.volume_tasks",
+        "app.tasks.stl_tasks",
+        "app.tasks.autoseg_tasks",
+    ],
 )
+
