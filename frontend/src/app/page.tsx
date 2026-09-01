@@ -176,7 +176,23 @@ export default function HomePage() {
       .then(setHealth)
       .catch(() => {});
     loadLicense();
+
+    if (typeof window !== 'undefined') {
+      const isCasesPath =
+        window.location.pathname === '/cases' ||
+        window.location.hash === '#cases-section' ||
+        window.location.hash === '#active-cases';
+      if (isCasesPath) {
+        setTimeout(() => {
+          const el = document.getElementById('active-cases');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 120);
+      }
+    }
   }, [fetchCases, loadLicense]);
+
 
 
 
@@ -838,7 +854,8 @@ export default function HomePage() {
         </section>
 
         {/* ── 3. Active Patient Workstation Cases ─────────── */}
-        <section>
+        <section id="active-cases" style={{ scrollMarginTop: 24 }}>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
             <div>
               <span className="eyebrow-label">WORKSTATION CASE MANAGER</span>
