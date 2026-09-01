@@ -119,7 +119,8 @@ function startBackend() {
 }
 
 
-const CLOUD_TUNNEL_FALLBACK = 'https://ranging-washing-replace-marker.trycloudflare.com';
+const CLOUD_TUNNEL_FALLBACK = 'https://homepage-weapon-climbing-pop.trycloudflare.com';
+
 
 
 function createMainWindow() {
