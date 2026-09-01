@@ -241,16 +241,20 @@ function SliceViewport({
   const sliceMmCoord = (currentSlice * spacingVal + originVal).toFixed(4);
 
 
-  // Preload neighboring slices (±3) for zero-latency scrubbing
+  // Preload neighboring slices (±2) with debounce for silky-smooth scrubbing without network congestion
   useEffect(() => {
-    for (let offset = -3; offset <= 3; offset++) {
-      if (offset === 0) continue;
-      const targetSlice = currentSlice + offset;
-      if (targetSlice >= 0 && targetSlice < maxVal) {
-        const nextUrl = `${API_BASE}/api/cases/${caseId}/volume/slice/${axis}/${targetSlice}${windowQuery}`;
-        preloadSliceImage(nextUrl);
+    const timer = setTimeout(() => {
+      for (let offset = -2; offset <= 2; offset++) {
+        if (offset === 0) continue;
+        const targetSlice = currentSlice + offset;
+        if (targetSlice >= 0 && targetSlice < maxVal) {
+          const nextUrl = `${API_BASE}/api/cases/${caseId}/volume/slice/${axis}/${targetSlice}${windowQuery}`;
+          preloadSliceImage(nextUrl);
+        }
       }
-    }
+    }, 120);
+
+    return () => clearTimeout(timer);
   }, [caseId, axis, currentSlice, maxVal, windowQuery]);
 
   // Zoom controls
