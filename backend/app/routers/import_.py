@@ -59,11 +59,17 @@ async def upload_dicom(
     db: AsyncSession = Depends(get_db),
 ):
     """Upload DICOM files (ZIP or individual .dcm). Validates and groups by series."""
-    # Verify case exists
+    # Verify case exists or auto-provision
     result = await db.execute(select(Case).where(Case.id == case_id))
     case = result.scalar_one_or_none()
     if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
+        case = Case(
+            id=case_id,
+            name=f"DICOM Study ({str(case_id)[:8]})",
+            status=CaseStatus.CREATED,
+        )
+        db.add(case)
+        await db.flush()
 
     # Create case data directory
     case_dir = settings.data_dir / str(case_id)
@@ -105,17 +111,28 @@ async def upload_dicom(
     for uid, info in series_map.items():
         series_dict = info.to_dict()
 
-        series_record = Series(
-            case_id=case_id,
-            series_instance_uid=info.series_instance_uid,
-            modality=info.modality,
-            slice_count=info.slice_count,
-            pixel_spacing_x=info.pixel_spacing[0] if info.pixel_spacing else None,
-            pixel_spacing_y=info.pixel_spacing[1] if info.pixel_spacing else None,
-            slice_thickness=info.slice_thickness,
-            dicom_dir=str(dicom_dir),
+        existing_series = await db.execute(
+            select(Series).where(
+                Series.case_id == case_id,
+                Series.series_instance_uid == info.series_instance_uid,
+            )
         )
-        db.add(series_record)
+        series_record = existing_series.scalar_one_or_none()
+        if series_record is None:
+            series_record = Series(
+                case_id=case_id,
+                series_instance_uid=info.series_instance_uid,
+                modality=info.modality,
+                slice_count=info.slice_count,
+                pixel_spacing_x=info.pixel_spacing[0] if info.pixel_spacing else None,
+                pixel_spacing_y=info.pixel_spacing[1] if info.pixel_spacing else None,
+                slice_thickness=info.slice_thickness,
+                dicom_dir=str(dicom_dir),
+            )
+            db.add(series_record)
+        else:
+            series_record.slice_count = info.slice_count
+            series_record.dicom_dir = str(dicom_dir)
         await db.flush()
 
         series_responses.append(
@@ -136,8 +153,9 @@ async def upload_dicom(
             )
         )
 
-    # Update case status
+    # Update case status and commit
     case.status = CaseStatus.IMPORTED
+    await db.commit()
 
     return UploadResponse(
         case_id=str(case_id),
@@ -145,6 +163,7 @@ async def upload_dicom(
         series=series_responses,
         global_errors=[e.to_dict() for e in global_errors],
     )
+
 
 
 @router.get("/{case_id}/series")

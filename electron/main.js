@@ -119,6 +119,9 @@ function startBackend() {
 }
 
 
+const CLOUD_TUNNEL_FALLBACK = 'https://ranging-washing-replace-marker.trycloudflare.com';
+
+
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -136,12 +139,33 @@ function createMainWindow() {
     },
   });
 
-  const isDev = !app.isPackaged;
-  const startUrl = isDev
-    ? `http://localhost:${FRONTEND_PORT}`
-    : `http://localhost:${FRONTEND_PORT}`; // Or loadFile if static export
+  const localUrl = `http://localhost:${FRONTEND_PORT}`;
 
-  mainWindow.loadURL(startUrl);
+  // Try loading local server first
+  mainWindow.loadURL(localUrl).catch(() => {
+    console.warn(`Local frontend not yet available at ${localUrl}. Trying fallback...`);
+  });
+
+  // Handle failed loads gracefully (prevent white screen)
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.warn(`Failed to load ${localUrl} (${errorCode}: ${errorDescription}). Attempting recovery...`);
+    
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        // Retry local first
+        http.get(localUrl, (res) => {
+          if (res.statusCode === 200) {
+            mainWindow.loadURL(localUrl);
+          } else {
+            mainWindow.loadURL(CLOUD_TUNNEL_FALLBACK);
+          }
+        }).on('error', () => {
+          console.log(`Connecting to cloud interface at ${CLOUD_TUNNEL_FALLBACK}...`);
+          mainWindow.loadURL(CLOUD_TUNNEL_FALLBACK);
+        });
+      }
+    }, 1500);
+  });
 
   mainWindow.once('ready-to-show', () => {
     if (splashWindow && !splashWindow.isDestroyed()) {
@@ -155,6 +179,7 @@ function createMainWindow() {
     mainWindow = null;
   });
 }
+
 
 // ── Native IPC Handlers ─────────────────────────────────────
 
