@@ -122,12 +122,12 @@ export default function ContrastHistogramPanel({
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
 
-    // Clear
-    ctx.fillStyle = '#11141a';
+    // Clear background
+    ctx.fillStyle = '#0f1410';
     ctx.fillRect(0, 0, width, height);
 
     // Grid lines
-    ctx.strokeStyle = '#1e2430';
+    ctx.strokeStyle = '#1b241c';
     ctx.lineWidth = 1;
     [0.25, 0.5, 0.75].forEach((ratio) => {
       ctx.beginPath();
@@ -141,7 +141,7 @@ export default function ContrastHistogramPanel({
       const x = huToX(hu, width);
       ctx.beginPath();
       ctx.setLineDash([3, 3]);
-      ctx.strokeStyle = '#2d3748';
+      ctx.strokeStyle = '#27382a';
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
       ctx.stroke();
@@ -151,15 +151,15 @@ export default function ContrastHistogramPanel({
     // Draw Histogram Area
     if (histogramData.length > 0) {
       const grad = ctx.createLinearGradient(0, 0, 0, height);
-      grad.addColorStop(0, 'rgba(100, 116, 139, 0.55)');
-      grad.addColorStop(1, 'rgba(51, 65, 85, 0.2)');
+      grad.addColorStop(0, 'rgba(16, 185, 129, 0.45)');
+      grad.addColorStop(1, 'rgba(16, 185, 129, 0.08)');
 
       ctx.beginPath();
       ctx.moveTo(0, height);
 
       histogramData.forEach((val, i) => {
         const x = (i / (histogramData.length - 1)) * width;
-        const y = height - (val / 100) * (height - 12);
+        const y = height - (val / 100) * (height - 10);
         if (i === 0) ctx.lineTo(x, y);
         else ctx.lineTo(x, y);
       });
@@ -169,16 +169,16 @@ export default function ContrastHistogramPanel({
       ctx.fillStyle = grad;
       ctx.fill();
 
-      // Outline top of histogram
+      // Top Outline
       ctx.beginPath();
       histogramData.forEach((val, i) => {
         const x = (i / (histogramData.length - 1)) * width;
-        const y = height - (val / 100) * (height - 12);
+        const y = height - (val / 100) * (height - 10);
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       });
-      ctx.strokeStyle = '#64748b';
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 1.3;
       ctx.stroke();
     }
 
@@ -188,11 +188,9 @@ export default function ContrastHistogramPanel({
     const bottomY = height - 4;
     const topY = 4;
 
-    // Ramp line
-    ctx.strokeStyle = '#f8fafc';
-    ctx.lineWidth = 2;
-
     // Segment 1: Baseline before Min
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 1.8;
     ctx.beginPath();
     ctx.moveTo(0, bottomY);
     ctx.lineTo(minX, bottomY);
@@ -203,15 +201,15 @@ export default function ContrastHistogramPanel({
     ctx.moveTo(minX, bottomY);
     ctx.lineTo(maxX, topY);
     ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2.4;
     ctx.stroke();
 
     // Segment 3: Topline after Max
     ctx.beginPath();
     ctx.moveTo(maxX, topY);
     ctx.lineTo(width, topY);
-    ctx.strokeStyle = '#f8fafc';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 1.8;
     ctx.stroke();
 
     // Min Handle Circle
@@ -233,7 +231,7 @@ export default function ContrastHistogramPanel({
     ctx.stroke();
   }, [histogramData, minHu, maxHu, activeTab, huToX]);
 
-  // 3. Pointer Interaction for Dragging Handles
+  // Pointer Interaction for Dragging Handles
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -298,11 +296,11 @@ export default function ContrastHistogramPanel({
     <div
       ref={containerRef}
       style={{
-        backgroundColor: '#0f1218',
-        borderTop: '1px solid #242c38',
+        backgroundColor: '#fcfbf8',
+        borderTop: '1px solid #ded8cb',
         display: 'flex',
         flexDirection: 'column',
-        height: isExpanded ? 220 : 130,
+        height: isExpanded ? 210 : 126,
         transition: 'height 0.2s ease',
         userSelect: 'none',
         fontFamily: 'var(--font-sans, system-ui, -apple-system, sans-serif)',
@@ -316,8 +314,8 @@ export default function ContrastHistogramPanel({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1px solid #1e2430',
-          backgroundColor: '#0c0e12',
+          borderBottom: '1px solid #e5e0d4',
+          backgroundColor: '#f7f5ef',
           padding: '0 8px',
           height: 28,
         }}
@@ -329,14 +327,14 @@ export default function ContrastHistogramPanel({
               padding: '3px 14px',
               fontSize: 11,
               fontWeight: 600,
-              backgroundColor: activeTab === 'log' ? '#0f1218' : 'transparent',
-              borderTop: activeTab === 'log' ? '2px solid #38bdf8' : '2px solid transparent',
-              borderLeft: activeTab === 'log' ? '1px solid #242c38' : '1px solid transparent',
-              borderRight: activeTab === 'log' ? '1px solid #242c38' : '1px solid transparent',
-              borderBottom: activeTab === 'log' ? '1px solid #0f1218' : 'none',
+              backgroundColor: activeTab === 'log' ? '#fcfbf8' : 'transparent',
+              borderTop: activeTab === 'log' ? '2px solid #10b981' : '2px solid transparent',
+              borderLeft: activeTab === 'log' ? '1px solid #e5e0d4' : '1px solid transparent',
+              borderRight: activeTab === 'log' ? '1px solid #e5e0d4' : '1px solid transparent',
+              borderBottom: activeTab === 'log' ? '1px solid #fcfbf8' : 'none',
               borderTopLeftRadius: 4,
               borderTopRightRadius: 4,
-              color: activeTab === 'log' ? '#f8fafc' : '#64748b',
+              color: activeTab === 'log' ? '#0f3e17' : '#6b7c6e',
               cursor: 'pointer',
               height: '100%',
               marginBottom: -1,
@@ -353,14 +351,14 @@ export default function ContrastHistogramPanel({
               padding: '3px 14px',
               fontSize: 11,
               fontWeight: 600,
-              backgroundColor: activeTab === 'volume' ? '#0f1218' : 'transparent',
-              borderTop: activeTab === 'volume' ? '2px solid #38bdf8' : '2px solid transparent',
-              borderLeft: activeTab === 'volume' ? '1px solid #242c38' : '1px solid transparent',
-              borderRight: activeTab === 'volume' ? '1px solid #242c38' : '1px solid transparent',
-              borderBottom: activeTab === 'volume' ? '1px solid #0f1218' : 'none',
+              backgroundColor: activeTab === 'volume' ? '#fcfbf8' : 'transparent',
+              borderTop: activeTab === 'volume' ? '2px solid #10b981' : '2px solid transparent',
+              borderLeft: activeTab === 'volume' ? '1px solid #e5e0d4' : '1px solid transparent',
+              borderRight: activeTab === 'volume' ? '1px solid #e5e0d4' : '1px solid transparent',
+              borderBottom: activeTab === 'volume' ? '1px solid #fcfbf8' : 'none',
               borderTopLeftRadius: 4,
               borderTopRightRadius: 4,
-              color: activeTab === 'volume' ? '#f8fafc' : '#64748b',
+              color: activeTab === 'volume' ? '#0f3e17' : '#6b7c6e',
               cursor: 'pointer',
               height: '100%',
               marginBottom: -1,
@@ -377,14 +375,14 @@ export default function ContrastHistogramPanel({
               padding: '3px 14px',
               fontSize: 11,
               fontWeight: 600,
-              backgroundColor: activeTab === 'contrast' ? '#0f1218' : 'transparent',
-              borderTop: activeTab === 'contrast' ? '2px solid #38bdf8' : '2px solid transparent',
-              borderLeft: activeTab === 'contrast' ? '1px solid #242c38' : '1px solid transparent',
-              borderRight: activeTab === 'contrast' ? '1px solid #242c38' : '1px solid transparent',
-              borderBottom: activeTab === 'contrast' ? '1px solid #0f1218' : 'none',
+              backgroundColor: activeTab === 'contrast' ? '#fcfbf8' : 'transparent',
+              borderTop: activeTab === 'contrast' ? '2px solid #10b981' : '2px solid transparent',
+              borderLeft: activeTab === 'contrast' ? '1px solid #e5e0d4' : '1px solid transparent',
+              borderRight: activeTab === 'contrast' ? '1px solid #e5e0d4' : '1px solid transparent',
+              borderBottom: activeTab === 'contrast' ? '1px solid #fcfbf8' : 'none',
               borderTopLeftRadius: 4,
               borderTopRightRadius: 4,
-              color: activeTab === 'contrast' ? '#38bdf8' : '#64748b',
+              color: activeTab === 'contrast' ? '#0f3e17' : '#6b7c6e',
               cursor: 'pointer',
               height: '100%',
               marginBottom: -1,
@@ -393,7 +391,7 @@ export default function ContrastHistogramPanel({
               gap: 4,
             }}
           >
-            <Activity size={11} /> Contrast & Grayscale
+            <Activity size={11} color={activeTab === 'contrast' ? '#10b981' : '#6b7c6e'} /> Contrast & Grayscale
           </button>
         </div>
 
@@ -405,7 +403,7 @@ export default function ContrastHistogramPanel({
             border: 'none',
             cursor: 'pointer',
             padding: '2px 4px',
-            color: '#64748b',
+            color: '#6b7c6e',
             display: 'flex',
             alignItems: 'center',
           }}
@@ -421,13 +419,13 @@ export default function ContrastHistogramPanel({
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            padding: '4px 12px 6px',
+            padding: '4px 12px 5px',
             position: 'relative',
-            backgroundColor: '#0f1218',
+            backgroundColor: '#fcfbf8',
           }}
         >
           {/* Main Interactive Canvas Area */}
-          <div style={{ flex: 1, position: 'relative', minHeight: 48, width: '100%' }}>
+          <div style={{ flex: 1, position: 'relative', minHeight: 46, width: '100%' }}>
             <canvas
               ref={canvasRef}
               onPointerDown={handlePointerDown}
@@ -439,7 +437,7 @@ export default function ContrastHistogramPanel({
                 display: 'block',
                 cursor: isDragging ? 'ew-resize' : 'crosshair',
                 borderRadius: 4,
-                border: '1px solid #1e2430',
+                border: '1px solid #ded8cb',
               }}
             />
           </div>
@@ -450,10 +448,11 @@ export default function ContrastHistogramPanel({
               display: 'flex',
               justifyContent: 'space-between',
               fontSize: 9.5,
-              color: '#64748b',
+              color: '#556b5a',
               fontFamily: 'var(--font-mono, monospace)',
               padding: '2px 4px 1px',
               position: 'relative',
+              fontWeight: 500,
             }}
           >
             <span>-1023</span>
@@ -470,13 +469,13 @@ export default function ContrastHistogramPanel({
               alignItems: 'center',
               justifyContent: 'flex-end',
               gap: 14,
-              paddingTop: 3,
+              paddingTop: 2,
               fontSize: 11,
             }}
           >
             {/* Grayscale Preset Dropdown */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Grayscale:</span>
+              <span style={{ fontSize: 11, color: '#0f3e17', fontWeight: 600 }}>Grayscale Scale:</span>
               <select
                 value={activePreset}
                 onChange={(e) => handlePresetSelect(e.target.value as GrayscalePreset)}
@@ -484,10 +483,10 @@ export default function ContrastHistogramPanel({
                   padding: '2px 8px',
                   fontSize: 11,
                   borderRadius: 4,
-                  border: '1px solid #334155',
-                  backgroundColor: '#1e293b',
-                  color: '#f8fafc',
-                  fontWeight: 500,
+                  border: '1px solid #ded8cb',
+                  backgroundColor: '#fff',
+                  color: '#0f3e17',
+                  fontWeight: 600,
                   outline: 'none',
                   cursor: 'pointer',
                   height: 22,
@@ -503,7 +502,7 @@ export default function ContrastHistogramPanel({
 
             {/* Min HU Input */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Min:</span>
+              <span style={{ fontSize: 11, color: '#0f3e17', fontWeight: 600 }}>Min HU:</span>
               <input
                 type="number"
                 value={minHu}
@@ -522,11 +521,11 @@ export default function ContrastHistogramPanel({
                   fontSize: 11,
                   fontFamily: 'var(--font-mono, monospace)',
                   borderRadius: 4,
-                  border: '1px solid #334155',
+                  border: '1px solid #ded8cb',
                   textAlign: 'right',
-                  backgroundColor: '#1e293b',
-                  color: '#38bdf8',
-                  fontWeight: 600,
+                  backgroundColor: '#fff',
+                  color: '#0f3e17',
+                  fontWeight: 700,
                   height: 22,
                 }}
               />
@@ -534,7 +533,7 @@ export default function ContrastHistogramPanel({
 
             {/* Max HU Input */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Max:</span>
+              <span style={{ fontSize: 11, color: '#0f3e17', fontWeight: 600 }}>Max HU:</span>
               <input
                 type="number"
                 value={maxHu}
@@ -553,11 +552,11 @@ export default function ContrastHistogramPanel({
                   fontSize: 11,
                   fontFamily: 'var(--font-mono, monospace)',
                   borderRadius: 4,
-                  border: '1px solid #334155',
+                  border: '1px solid #ded8cb',
                   textAlign: 'right',
-                  backgroundColor: '#1e293b',
-                  color: '#38bdf8',
-                  fontWeight: 600,
+                  backgroundColor: '#fff',
+                  color: '#0f3e17',
+                  fontWeight: 700,
                   height: 22,
                 }}
               />
@@ -568,7 +567,7 @@ export default function ContrastHistogramPanel({
 
       {/* Log Tab */}
       {activeTab === 'log' && (
-        <div style={{ flex: 1, padding: 10, fontSize: 11, color: '#94a3b8', overflowY: 'auto', backgroundColor: '#0f1218', fontFamily: 'var(--font-mono, monospace)' }}>
+        <div style={{ flex: 1, padding: 10, fontSize: 11, color: '#334155', overflowY: 'auto', backgroundColor: '#fcfbf8', fontFamily: 'var(--font-mono, monospace)' }}>
           <div>[SYSTEM] Multi-Planar Reconstruction (MPR) Engine Active.</div>
           <div>[INFO] CT Voxel space dynamic range: [{dataStats.min} HU .. {dataStats.max} HU]</div>
           <div>[GPU] Real-time slice windowing & grayscale transfer pipeline calibrated.</div>
@@ -577,10 +576,10 @@ export default function ContrastHistogramPanel({
 
       {/* Volume Rendering Tab */}
       {activeTab === 'volume' && (
-        <div style={{ flex: 1, padding: 10, fontSize: 11, color: '#cbd5e1', display: 'flex', gap: 20, alignItems: 'center', backgroundColor: '#0f1218' }}>
-          <span>Volume Raycasting Opacity: <strong style={{ color: '#38bdf8' }}>100%</strong></span>
-          <span>Iso-surface Threshold: <strong style={{ color: '#38bdf8' }}>{minHu} HU</strong></span>
-          <span>Shading Model: <strong style={{ color: '#38bdf8' }}>Phong Blinn Bone</strong></span>
+        <div style={{ flex: 1, padding: 10, fontSize: 11, color: '#334155', display: 'flex', gap: 20, alignItems: 'center', backgroundColor: '#fcfbf8' }}>
+          <span>Volume Raycasting Opacity: <strong style={{ color: '#0f3e17' }}>100%</strong></span>
+          <span>Iso-surface Threshold: <strong style={{ color: '#0f3e17' }}>{minHu} HU</strong></span>
+          <span>Shading Model: <strong style={{ color: '#0f3e17' }}>Phong Blinn Bone</strong></span>
         </div>
       )}
     </div>

@@ -38,14 +38,13 @@ import {
   RefreshCw,
   Eye,
   Settings,
-  Flame,
   Binary,
 } from 'lucide-react';
 
 export type RibbonTab =
   | 'view'
-  | 'autoseg'
   | 'interactive'
+  | 'autoseg'
   | 'measure'
   | 'export'
   | 'license';
@@ -135,7 +134,7 @@ export default function RibbonMenu({
 
   const TABS: { id: RibbonTab; label: string; icon: any; badge?: string }[] = [
     { id: 'view', label: 'View & Layout', icon: Grid2X2 },
-    { id: 'interactive', label: 'Interactive CAD', icon: Zap, badge: 'Core' },
+    { id: 'interactive', label: 'Interactive CAD', icon: Zap, badge: 'Active' },
     { id: 'autoseg', label: 'AI Auto-Seg', icon: Sparkles, badge: 'AI' },
     { id: 'measure', label: 'Measure & HU', icon: Ruler },
     { id: 'export', label: '3D Export & Print', icon: Download },
@@ -145,8 +144,8 @@ export default function RibbonMenu({
   return (
     <div
       style={{
-        backgroundColor: '#0c0e12',
-        borderBottom: '1px solid #1e2430',
+        backgroundColor: '#fcfbf8',
+        borderBottom: '1px solid #e5e0d4',
         display: 'flex',
         flexDirection: 'column',
         userSelect: 'none',
@@ -154,16 +153,16 @@ export default function RibbonMenu({
         fontFamily: 'var(--font-sans, system-ui, -apple-system, sans-serif)',
       }}
     >
-      {/* ── Level 1: Top Quick Access & Ribbon Navigation Header ── */}
+      {/* ── Level 1: Primary Header & Ribbon Tabs ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 10px',
-          height: 34,
-          backgroundColor: '#07090c',
-          borderBottom: '1px solid #181d26',
+          padding: '0 12px',
+          height: 38,
+          backgroundColor: '#fff',
+          borderBottom: '1px solid #e8e4db',
         }}
       >
         {/* Left: Back & Case Title */}
@@ -175,27 +174,27 @@ export default function RibbonMenu({
               display: 'flex',
               alignItems: 'center',
               gap: 5,
-              background: '#151922',
-              border: '1px solid #242c38',
-              borderRadius: 4,
-              padding: '2px 8px',
-              color: '#94a3b8',
-              fontSize: 11,
+              background: '#f7f5ef',
+              border: '1px solid #ded8cb',
+              borderRadius: 6,
+              padding: '3px 9px',
+              color: '#0f3e17',
+              fontSize: 11.5,
               fontWeight: 600,
               cursor: 'pointer',
-              height: 24,
+              height: 26,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#f8fafc')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#e1f4df')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f7f5ef')}
           >
-            <ArrowLeft size={13} />
+            <ArrowLeft size={13} color="#0f3e17" />
             <span>Cases</span>
           </button>
 
-          <div style={{ height: 14, width: 1, backgroundColor: '#242c38' }} />
+          <div style={{ height: 16, width: 1, backgroundColor: '#e5e0d4' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#0f3e17', fontFamily: 'var(--font-serif, Georgia, serif)' }}>
               {caseTitle || 'CT Volumetric Reconstruction'}
             </span>
             <span
@@ -203,10 +202,10 @@ export default function RibbonMenu({
                 fontSize: 9.5,
                 padding: '1px 6px',
                 borderRadius: 10,
-                backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                color: '#38bdf8',
+                backgroundColor: '#e1f4df',
+                color: '#0f3e17',
                 fontWeight: 700,
-                border: '1px solid rgba(56, 189, 248, 0.3)',
+                border: '1px solid #b1dbb8',
               }}
             >
               Stage 3: CAD
@@ -215,7 +214,7 @@ export default function RibbonMenu({
         </div>
 
         {/* Center: Ribbon Primary Tabs */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: 3, height: '100%' }}>
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -232,24 +231,24 @@ export default function RibbonMenu({
                   gap: 5,
                   padding: '0 12px',
                   height: '100%',
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: isActive ? 700 : 500,
-                  color: isActive ? '#38bdf8' : '#94a3b8',
-                  backgroundColor: isActive ? '#0f131a' : 'transparent',
+                  color: isActive ? '#0f3e17' : '#556b5a',
+                  backgroundColor: isActive ? '#fcfbf8' : 'transparent',
                   border: 'none',
-                  borderBottom: isActive ? '2px solid #38bdf8' : '2px solid transparent',
+                  borderBottom: isActive ? '2.5px solid #10b981' : '2.5px solid transparent',
                   cursor: 'pointer',
                   position: 'relative',
                   transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.color = '#e2e8f0';
+                  if (!isActive) e.currentTarget.style.color = '#0f3e17';
                 }}
                 onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.color = '#94a3b8';
+                  if (!isActive) e.currentTarget.style.color = '#556b5a';
                 }}
               >
-                <Icon size={13} color={isActive ? '#38bdf8' : '#64748b'} />
+                <Icon size={14} color={isActive ? '#10b981' : '#6b7c6e'} />
                 <span>{tab.label}</span>
                 {tab.badge && (
                   <span
@@ -257,8 +256,8 @@ export default function RibbonMenu({
                       fontSize: 8.5,
                       padding: '0 4px',
                       borderRadius: 3,
-                      backgroundColor: isActive ? 'rgba(56,189,248,0.2)' : 'rgba(100,116,139,0.2)',
-                      color: isActive ? '#38bdf8' : '#94a3b8',
+                      backgroundColor: isActive ? '#10b981' : '#e1f4df',
+                      color: isActive ? '#fff' : '#0f3e17',
                       fontWeight: 700,
                     }}
                   >
@@ -281,17 +280,17 @@ export default function RibbonMenu({
               fontSize: 10.5,
               padding: '2px 8px',
               borderRadius: 4,
-              backgroundColor: isSimulatedMode ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-              border: `1px solid ${isSimulatedMode ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
-              color: isSimulatedMode ? '#fca5a5' : '#86efac',
+              backgroundColor: isSimulatedMode ? '#fee2e2' : '#ecfdf5',
+              border: `1px solid ${isSimulatedMode ? '#fca5a5' : '#a7f3d0'}`,
+              color: isSimulatedMode ? '#991b1b' : '#065f46',
               fontWeight: 600,
             }}
           >
-            <Cpu size={11} />
-            <span>{isSimulatedMode ? 'Heuristic' : 'GPU Neural'}</span>
+            <Cpu size={11} color={isSimulatedMode ? '#dc2626' : '#10b981'} />
+            <span>{isSimulatedMode ? 'Heuristic Mode' : 'GPU Neural'}</span>
           </div>
 
-          <div style={{ height: 14, width: 1, backgroundColor: '#242c38' }} />
+          <div style={{ height: 16, width: 1, backgroundColor: '#e5e0d4' }} />
 
           {/* Shortcuts Modal Button */}
           <button
@@ -301,17 +300,20 @@ export default function RibbonMenu({
               display: 'flex',
               alignItems: 'center',
               gap: 4,
-              background: '#151922',
-              border: '1px solid #242c38',
-              borderRadius: 4,
-              padding: '2px 7px',
-              color: '#94a3b8',
+              background: '#fff',
+              border: '1px solid #ded8cb',
+              borderRadius: 6,
+              padding: '2px 8px',
+              color: '#0f3e17',
               fontSize: 11,
+              fontWeight: 500,
               cursor: 'pointer',
-              height: 24,
+              height: 26,
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f7f5ef')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#fff')}
           >
-            <HelpCircle size={12} />
+            <HelpCircle size={12} color="#0f3e17" />
             <span>Keys (?)</span>
           </button>
         </div>
@@ -323,11 +325,11 @@ export default function RibbonMenu({
           style={{
             display: 'flex',
             alignItems: 'stretch',
-            padding: '4px 8px 3px',
-            backgroundColor: '#0f131a',
+            padding: '5px 10px 4px',
+            backgroundColor: '#fcfbf8',
             minHeight: 74,
             overflowX: 'auto',
-            gap: 4,
+            gap: 6,
           }}
         >
           {/* ========================================================= */}
@@ -335,12 +337,11 @@ export default function RibbonMenu({
           {/* ========================================================= */}
           {activeTab === 'view' && (
             <>
-              {/* Section: Viewport Layouts */}
               <RibbonSection label="Viewport Layout">
                 <RibbonButton
                   icon={Grid2X2}
-                  label="2x2 Quad MPR"
-                  sub="Axial/Cor/Sag/3D"
+                  label="2×2 Quad MPR"
+                  sub="Axial / Cor / Sag / 3D"
                   active={viewMode === 'quad'}
                   onClick={() => onViewModeChange('quad')}
                   large
@@ -373,7 +374,6 @@ export default function RibbonMenu({
                 </div>
               </RibbonSection>
 
-              {/* Section: Navigation & Crosshairs */}
               <RibbonSection label="Navigation & Crosshairs">
                 <RibbonButton
                   icon={Hand}
@@ -391,7 +391,6 @@ export default function RibbonMenu({
                 />
               </RibbonSection>
 
-              {/* Section: CT Windowing Presets */}
               <RibbonSection label="CT Windowing Presets">
                 <RibbonButton
                   label="Bone CT"
@@ -426,7 +425,6 @@ export default function RibbonMenu({
           {/* ========================================================= */}
           {activeTab === 'interactive' && (
             <>
-              {/* Section: 3D Region Grow & Point Seed */}
               <RibbonSection label="Primary Seed & Grow">
                 <RibbonButton
                   icon={Zap}
@@ -440,15 +438,14 @@ export default function RibbonMenu({
                 />
                 <RibbonButton
                   icon={Crosshair}
-                  label="Point Seed"
-                  sub="MITK Click Mode"
+                  label="Point Click"
+                  sub="MITK Single Seed"
                   hotkey="P"
                   active={activeTool === 'point'}
                   onClick={() => onToolSelect('point')}
                 />
               </RibbonSection>
 
-              {/* Section: Target vs Background Mode */}
               <RibbonSection label="Target Polarity">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 105 }}>
                   <button
@@ -458,16 +455,16 @@ export default function RibbonMenu({
                       alignItems: 'center',
                       gap: 6,
                       padding: '4px 8px',
-                      borderRadius: 4,
-                      backgroundColor: includeMode ? 'rgba(34, 197, 94, 0.2)' : '#151922',
-                      border: `1px solid ${includeMode ? '#22c55e' : '#242c38'}`,
-                      color: includeMode ? '#86efac' : '#94a3b8',
+                      borderRadius: 5,
+                      backgroundColor: includeMode ? '#e1f4df' : '#fff',
+                      border: `1px solid ${includeMode ? '#10b981' : '#ded8cb'}`,
+                      color: includeMode ? '#0f3e17' : '#556b5a',
                       fontSize: 11,
-                      fontWeight: 600,
+                      fontWeight: includeMode ? 700 : 500,
                       cursor: 'pointer',
                     }}
                   >
-                    <span style={{ fontSize: 13, fontWeight: 900 }}>+</span>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: '#10b981' }}>+</span>
                     <span>Target Bone</span>
                   </button>
 
@@ -478,23 +475,22 @@ export default function RibbonMenu({
                       alignItems: 'center',
                       gap: 6,
                       padding: '4px 8px',
-                      borderRadius: 4,
-                      backgroundColor: !includeMode ? 'rgba(239, 68, 68, 0.2)' : '#151922',
-                      border: `1px solid ${!includeMode ? '#ef4444' : '#242c38'}`,
-                      color: !includeMode ? '#fca5a5' : '#94a3b8',
+                      borderRadius: 5,
+                      backgroundColor: !includeMode ? '#fee2e2' : '#fff',
+                      border: `1px solid ${!includeMode ? '#ef4444' : '#ded8cb'}`,
+                      color: !includeMode ? '#991b1b' : '#556b5a',
                       fontSize: 11,
-                      fontWeight: 600,
+                      fontWeight: !includeMode ? 700 : 500,
                       cursor: 'pointer',
                     }}
                   >
-                    <span style={{ fontSize: 13, fontWeight: 900 }}>−</span>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: '#ef4444' }}>−</span>
                     <span>Background</span>
                   </button>
                 </div>
               </RibbonSection>
 
-              {/* Section: Manual Drawing Tools */}
-              <RibbonSection label="Manual Brush & Lasso">
+              <RibbonSection label="Manual Drawing Tools">
                 <RibbonButton
                   icon={Pen}
                   label="Scribble Brush"
@@ -518,14 +514,13 @@ export default function RibbonMenu({
                 />
                 <RibbonButton
                   icon={Eraser}
-                  label="Eraser Tool"
+                  label="Eraser Brush"
                   hotkey="E"
                   active={activeTool === 'eraser'}
                   onClick={() => onToolSelect('eraser')}
                 />
               </RibbonSection>
 
-              {/* Section: Topology & Surgical Cleanup */}
               <RibbonSection label="Topology & Surgical Filters">
                 <RibbonButton
                   icon={Layers}
@@ -538,20 +533,20 @@ export default function RibbonMenu({
                 <RibbonButton
                   icon={Split}
                   label="Split Mask"
-                  sub="Multi-Body Island"
+                  sub="Multi-Body Split"
                   hotkey="X"
                   onClick={onOpenSplitMaskModal}
                 />
                 <RibbonButton
                   icon={SlidersHorizontal}
                   label="HU Threshold"
-                  sub="Direct Intensity"
+                  sub="Direct Density"
                   onClick={onOpenThresholdModal}
                 />
                 <RibbonButton
                   icon={Scissors}
                   label="Morphology"
-                  sub="Dilate / Erode"
+                  sub="Dilate / Erode / Close"
                   onClick={onOpenMorphologyModal}
                 />
               </RibbonSection>
@@ -563,11 +558,10 @@ export default function RibbonMenu({
           {/* ========================================================= */}
           {activeTab === 'autoseg' && (
             <>
-              {/* Section: Neural Inference Engine */}
               <RibbonSection label="Neural Inference Engine">
                 <RibbonButton
                   icon={Sparkles}
-                  label="Launch Auto-Seg"
+                  label="Launch Auto-Seg (AI)"
                   sub="TotalSegmentator & MONAI"
                   onClick={onOpenAutoSegModal}
                   large
@@ -575,12 +569,11 @@ export default function RibbonMenu({
                 />
               </RibbonSection>
 
-              {/* Section: Presets Quick Select */}
               <RibbonSection label="Pre-trained Anatomical Presets">
                 <RibbonButton
                   icon={Brain}
                   label="Unified Skeleton"
-                  sub="Primary Bone Target"
+                  sub="All Skeletal Structures"
                   onClick={onOpenAutoSegModal}
                 />
                 <RibbonButton
@@ -592,7 +585,7 @@ export default function RibbonMenu({
                 <RibbonButton
                   icon={Box}
                   label="Spine & Pelvis"
-                  sub="Vertebrae / Pelvic"
+                  sub="Vertebrae / Pelvic Ring"
                   onClick={onOpenAutoSegModal}
                 />
               </RibbonSection>
@@ -604,7 +597,6 @@ export default function RibbonMenu({
           {/* ========================================================= */}
           {activeTab === 'measure' && (
             <>
-              {/* Section: Calibrated Instruments */}
               <RibbonSection label="Calibrated Clinical Tools">
                 <RibbonButton
                   icon={Ruler}
@@ -626,11 +618,10 @@ export default function RibbonMenu({
                 />
               </RibbonSection>
 
-              {/* Section: Measurement Manager */}
               <RibbonSection label="Active Measurements">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 120 }}>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                    Active: <strong style={{ color: '#38bdf8' }}>{measurementCount}</strong> measurements
+                  <div style={{ fontSize: 11, color: '#556b5a' }}>
+                    Active: <strong style={{ color: '#0f3e17' }}>{measurementCount}</strong> measurements
                   </div>
                   <button
                     onClick={onClearMeasurements}
@@ -639,9 +630,9 @@ export default function RibbonMenu({
                       padding: '3px 8px',
                       fontSize: 10.5,
                       borderRadius: 4,
-                      backgroundColor: measurementCount > 0 ? '#1e2430' : '#151922',
-                      border: '1px solid #2d3748',
-                      color: measurementCount > 0 ? '#fca5a5' : '#64748b',
+                      backgroundColor: measurementCount > 0 ? '#fee2e2' : '#f7f5ef',
+                      border: '1px solid #ded8cb',
+                      color: measurementCount > 0 ? '#dc2626' : '#94a3b8',
                       cursor: measurementCount > 0 ? 'pointer' : 'default',
                     }}
                   >
@@ -657,7 +648,6 @@ export default function RibbonMenu({
           {/* ========================================================= */}
           {activeTab === 'export' && (
             <>
-              {/* Section: Mesh Generation */}
               <RibbonSection label="CAD Mesh Generation">
                 <RibbonButton
                   icon={Download}
@@ -670,7 +660,6 @@ export default function RibbonMenu({
                 />
               </RibbonSection>
 
-              {/* Section: Formats */}
               <RibbonSection label="Export Formats & 3D Print">
                 <RibbonButton
                   icon={FileDown}
@@ -699,7 +688,6 @@ export default function RibbonMenu({
           {/* ========================================================= */}
           {activeTab === 'license' && (
             <>
-              {/* Section: Clinical Licensing */}
               <RibbonSection label="Licensing & Master Admin">
                 <RibbonButton
                   icon={ShieldCheck}
@@ -710,7 +698,6 @@ export default function RibbonMenu({
                 />
               </RibbonSection>
 
-              {/* Section: Shortcuts & Reference */}
               <RibbonSection label="Help & Documentation">
                 <RibbonButton
                   icon={HelpCircle}
@@ -736,8 +723,8 @@ function RibbonSection({ label, children }: { label: string; children: React.Rea
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '0 6px',
-        borderRight: '1px solid #1c222c',
+        padding: '0 8px',
+        borderRight: '1px solid #e8e4db',
         position: 'relative',
       }}
     >
@@ -754,14 +741,14 @@ function RibbonSection({ label, children }: { label: string; children: React.Rea
       </div>
       <div
         style={{
-          fontSize: 9,
+          fontSize: 9.5,
           fontWeight: 600,
-          color: '#64748b',
+          color: '#6b7c6e',
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
           marginTop: 2,
           paddingTop: 2,
-          borderTop: '1px solid #181e28',
+          borderTop: '1px solid #ebe7df',
           width: '100%',
           textAlign: 'center',
         }}
@@ -803,13 +790,13 @@ function RibbonButton({
         onClick={onClick}
         disabled={disabled}
         style={{
-          padding: '2px 8px',
+          padding: '3px 8px',
           fontSize: 10.5,
           fontWeight: active ? 700 : 500,
-          borderRadius: 3,
-          backgroundColor: active ? 'rgba(56, 189, 248, 0.2)' : '#151922',
-          border: `1px solid ${active ? '#38bdf8' : '#242c38'}`,
-          color: active ? '#38bdf8' : '#cbd5e1',
+          borderRadius: 4,
+          backgroundColor: active ? '#e1f4df' : '#fff',
+          border: `1px solid ${active ? '#10b981' : '#ded8cb'}`,
+          color: active ? '#0f3e17' : '#334155',
           cursor: disabled ? 'not-allowed' : 'pointer',
           textAlign: 'center',
           whiteSpace: 'nowrap',
@@ -831,40 +818,41 @@ function RibbonButton({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '4px 12px',
-          minWidth: 80,
-          borderRadius: 5,
+          padding: '5px 12px',
+          minWidth: 84,
+          borderRadius: 6,
           backgroundColor: active
-            ? 'rgba(56, 189, 248, 0.2)'
+            ? '#e1f4df'
             : highlight
-              ? 'rgba(16, 185, 129, 0.15)'
-              : '#141820',
+              ? '#ecfdf5'
+              : '#ffffff',
           border: `1px solid ${
             active
-              ? '#38bdf8'
+              ? '#10b981'
               : highlight
                 ? '#10b981'
-                : '#242c38'
+                : '#ded8cb'
           }`,
-          color: active ? '#38bdf8' : highlight ? '#86efac' : '#e2e8f0',
+          color: active ? '#0f3e17' : highlight ? '#065f46' : '#1e293b',
           cursor: disabled ? 'not-allowed' : 'pointer',
           position: 'relative',
           gap: 2,
+          boxShadow: highlight ? '0 1px 3px rgba(16,185,129,0.15)' : '0 1px 2px rgba(0,0,0,0.03)',
           transition: 'all 0.15s ease',
         }}
       >
-        {Icon && <Icon size={18} color={active ? '#38bdf8' : highlight ? '#34d399' : '#94a3b8'} />}
+        {Icon && <Icon size={18} color={active ? '#0f3e17' : highlight ? '#10b981' : '#556b5a'} />}
         <span style={{ fontSize: 11, fontWeight: 700, textAlign: 'center', lineHeight: 1.2 }}>{label}</span>
-        {sub && <span style={{ fontSize: 9, color: '#64748b', textAlign: 'center' }}>{sub}</span>}
+        {sub && <span style={{ fontSize: 9, color: '#6b7c6e', textAlign: 'center' }}>{sub}</span>}
         {hotkey && (
           <span
             style={{
               position: 'absolute',
               top: 2,
-              right: 3,
-              fontSize: 8,
+              right: 4,
+              fontSize: 8.5,
               fontFamily: 'var(--font-mono, monospace)',
-              color: '#64748b',
+              color: '#6b7c6e',
               fontWeight: 700,
             }}
           >
@@ -883,45 +871,46 @@ function RibbonButton({
         display: 'flex',
         alignItems: 'center',
         gap: 6,
-        padding: '4px 8px',
-        borderRadius: 4,
+        padding: '5px 9px',
+        borderRadius: 5,
         backgroundColor: active
-          ? 'rgba(56, 189, 248, 0.18)'
+          ? '#e1f4df'
           : highlight
-            ? 'rgba(16, 185, 129, 0.12)'
-            : '#141820',
+            ? '#ecfdf5'
+            : '#ffffff',
         border: `1px solid ${
           active
-            ? '#38bdf8'
+            ? '#10b981'
             : highlight
               ? '#10b981'
-              : '#242c38'
+              : '#ded8cb'
         }`,
-        color: active ? '#38bdf8' : highlight ? '#86efac' : '#cbd5e1',
+        color: active ? '#0f3e17' : highlight ? '#065f46' : '#1e293b',
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontSize: 11,
         fontWeight: active ? 700 : 500,
         position: 'relative',
         transition: 'all 0.12s ease',
         textAlign: 'left',
-        minWidth: 90,
+        minWidth: 92,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
       }}
     >
-      {Icon && <Icon size={13} color={active ? '#38bdf8' : highlight ? '#34d399' : '#94a3b8'} />}
+      {Icon && <Icon size={14} color={active ? '#0f3e17' : highlight ? '#10b981' : '#556b5a'} />}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         <span style={{ fontSize: 11, fontWeight: 600 }}>{label}</span>
-        {sub && <span style={{ fontSize: 8.5, color: '#64748b' }}>{sub}</span>}
+        {sub && <span style={{ fontSize: 8.5, color: '#6b7c6e' }}>{sub}</span>}
       </div>
       {hotkey && (
         <span
           style={{
-            fontSize: 8,
+            fontSize: 8.5,
             fontFamily: 'var(--font-mono, monospace)',
-            color: '#64748b',
+            color: '#6b7c6e',
             fontWeight: 700,
-            backgroundColor: '#1b222d',
+            backgroundColor: '#f1efe9',
             padding: '1px 3px',
-            borderRadius: 2,
+            borderRadius: 3,
           }}
         >
           {hotkey}

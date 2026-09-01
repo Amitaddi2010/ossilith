@@ -1915,33 +1915,32 @@ export default function SegmentPage() {
       {isSimulatedMode && (
         <div
           style={{
-            backgroundColor: '#1a1113',
-            color: '#fca5a5',
-            padding: '3px 16px',
+            backgroundColor: '#fffbeb',
+            color: '#92400e',
+            padding: '4px 16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             fontSize: 11,
-            borderBottom: '1px solid #451a1a',
+            borderBottom: '1px solid #fde68a',
             zIndex: 15,
           }}
         >
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <AlertTriangle size={12} color="#f87171" />
+            <AlertTriangle size={12} color="#d97706" />
             <span style={{ fontWeight: 600 }}>Heuristic / Intensity Segmentation Mode Active</span>
-            <span style={{ color: '#f87171', opacity: 0.75, fontSize: 10.5 }}>
+            <span style={{ color: '#b45309', opacity: 0.85, fontSize: 10.5 }}>
               (nnInteractive neural backend offline — verifying intensity gradients)
             </span>
           </div>
-          <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, backgroundColor: 'rgba(239,68,68,0.2)', color: '#fca5a5', fontWeight: 600, letterSpacing: '0.04em' }}>
+          <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, backgroundColor: '#fef3c7', color: '#92400e', fontWeight: 700, letterSpacing: '0.04em', border: '1px solid #fde68a' }}>
             HEURISTIC INTENSITY
           </span>
         </div>
       )}
 
-
       {/* ── Auto-Segmentation Real-time Floating HUD Banner ── */}
-
       {isAutoSegmenting && (
         <div
           style={{
@@ -1953,7 +1952,7 @@ export default function SegmentPage() {
             justifyContent: 'space-between',
             fontSize: 12,
             borderBottom: '1px solid rgba(16,185,129,0.3)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             zIndex: 10,
           }}
         >
@@ -1988,101 +1987,258 @@ export default function SegmentPage() {
         <aside
           className="animate-slide-in-left"
           style={{
-            width: 230,
-            borderRight: '1px solid #1c222c',
-            backgroundColor: '#0c0e12',
-            padding: 10,
+            width: 228,
+            borderRight: '1px solid #ded8cb',
+            backgroundColor: '#fcfbf8',
+            padding: 9,
             display: 'flex',
             flexDirection: 'column',
-            gap: 10,
+            gap: 8,
             overflowY: 'auto',
+            userSelect: 'none',
           }}
         >
-          {/* Active Tool Shortcut Bar */}
+          {/* Active Tool Dynamic Inspector */}
           <div
             style={{
-              backgroundColor: '#12161f',
-              padding: 8,
+              backgroundColor: '#fff',
+              padding: 9,
               borderRadius: 6,
-              border: '1px solid #1e2634',
+              border: '1px solid #ded8cb',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
             }}
           >
-            <div
-              style={{
-                fontSize: 9.5,
-                fontWeight: 700,
-                color: '#64748b',
-                marginBottom: 6,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                fontFamily: 'var(--font-sans)',
-              }}
-            >
-              Active Tool Palette
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  color: '#6b7c6e',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                Active Tool
+              </span>
+              <span
+                style={{
+                  fontSize: 9.5,
+                  padding: '1px 6px',
+                  borderRadius: 4,
+                  backgroundColor: '#e1f4df',
+                  color: '#0f3e17',
+                  fontWeight: 700,
+                  border: '1px solid #b1dbb8',
+                }}
+              >
+                {TOOLS.find((t) => t.id === activeTool)?.label || 'Tool'}
+              </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {TOOLS.map((tool) => {
-                const Icon = tool.icon;
-                const isSelected = activeTool === tool.id;
-                return (
+
+            {/* Region Grow Parameters */}
+            {activeTool === 'region_grow' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 2 }}>
+                <div style={{ display: 'flex', gap: 3 }}>
                   <button
-                    key={tool.id}
-                    onClick={() => setActiveTool(tool.id)}
+                    onClick={() => { setRgMinHU(400); setRgMaxHU(3000); }}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 7,
-                      padding: '5px 8px',
-                      borderRadius: 4,
-                      border: isSelected ? '1px solid #38bdf8' : '1px solid transparent',
-                      backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                      color: isSelected ? '#38bdf8' : '#cbd5e1',
-                      fontWeight: isSelected ? 700 : 400,
-                      fontSize: 11,
+                      flex: 1,
+                      fontSize: 8.5,
+                      padding: '2px 0',
+                      borderRadius: 3,
+                      border: `1px solid ${rgMinHU === 400 ? '#10b981' : '#ded8cb'}`,
+                      backgroundColor: rgMinHU === 400 ? '#e1f4df' : '#fff',
+                      color: rgMinHU === 400 ? '#0f3e17' : '#556b5a',
+                      fontWeight: 600,
                       cursor: 'pointer',
-                      textAlign: 'left',
-                      fontFamily: 'var(--font-sans)',
-                      transition: 'all 120ms ease',
                     }}
                   >
-                    <Icon size={13} color={isSelected ? '#38bdf8' : '#64748b'} />
-                    <span style={{ flex: 1 }}>{tool.label}</span>
-                    <span
-                      style={{
-                        fontSize: 8.5,
-                        color: '#64748b',
-                        fontFamily: 'var(--font-mono)',
-                        backgroundColor: '#1b222d',
-                        padding: '1px 4px',
-                        borderRadius: 2,
-                      }}
-                    >
-                      {tool.shortcut}
-                    </span>
+                    Cortical (≥400)
                   </button>
-                );
-              })}
-            </div>
-          </div>
+                  <button
+                    onClick={() => { setRgMinHU(150); setRgMaxHU(3000); }}
+                    style={{
+                      flex: 1,
+                      fontSize: 8.5,
+                      padding: '2px 0',
+                      borderRadius: 3,
+                      border: `1px solid ${rgMinHU === 150 ? '#10b981' : '#ded8cb'}`,
+                      backgroundColor: rgMinHU === 150 ? '#e1f4df' : '#fff',
+                      color: rgMinHU === 150 ? '#0f3e17' : '#556b5a',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    All Bone (≥150)
+                  </button>
+                </div>
 
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: '#556b5a', marginBottom: 1 }}>
+                    <span>Min HU</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#0f3e17' }}>{rgMinHU} HU</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-200"
+                    max="1000"
+                    step="10"
+                    value={rgMinHU}
+                    onChange={(e) => setRgMinHU(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#10b981', height: 4 }}
+                  />
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: '#556b5a', marginBottom: 1 }}>
+                    <span>Max HU</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#0f3e17' }}>{rgMaxHU} HU</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="200"
+                    max="3000"
+                    step="50"
+                    value={rgMaxHU}
+                    onChange={(e) => setRgMaxHU(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#10b981', height: 4 }}
+                  />
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: '#556b5a', marginBottom: 1 }}>
+                    <span>Search Radius</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#0f3e17' }}>{rgRadius >= 200 ? 'Full' : `${rgRadius}mm`}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="200"
+                    step="5"
+                    value={rgRadius}
+                    onChange={(e) => setRgRadius(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#10b981', height: 4 }}
+                  />
+                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, cursor: 'pointer', color: '#0f3e17' }}>
+                  <input
+                    type="checkbox"
+                    checked={rgFillHoles}
+                    onChange={(e) => setRgFillHoles(e.target.checked)}
+                    style={{ accentColor: '#10b981' }}
+                  />
+                  <span>Fill Internal Bone Cavities</span>
+                </label>
+              </div>
+            )}
+
+            {/* Island Filter Parameters */}
+            {activeTool === 'island' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 2 }}>
+                <p style={{ fontSize: 9.5, color: '#556b5a', margin: 0 }}>
+                  Click bone to isolate it, or run 1-click filter:
+                </p>
+                <button
+                  onClick={handleKeepLargestIsland}
+                  disabled={isPrompting || !activeLayerId}
+                  style={{
+                    fontSize: 10,
+                    padding: '4px 6px',
+                    backgroundColor: '#ecfdf5',
+                    border: '1px solid #10b981',
+                    color: '#065f46',
+                    fontWeight: 600,
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                  }}
+                >
+                  👑 Keep Largest Island
+                </button>
+                <button
+                  onClick={() => handleRemoveSmallIslands(islandMinSize)}
+                  disabled={isPrompting || !activeLayerId}
+                  style={{
+                    fontSize: 9.5,
+                    padding: '3px 6px',
+                    backgroundColor: '#fff',
+                    border: '1px solid #ded8cb',
+                    color: '#0f3e17',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Purge &lt; {islandMinSize} vx
+                </button>
+              </div>
+            )}
+
+            {/* Split Mask Tool */}
+            {activeTool === 'split_mask' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 2 }}>
+                <p style={{ fontSize: 9.5, color: '#556b5a', margin: 0 }}>
+                  Partition active mask into separate layers:
+                </p>
+                <button
+                  onClick={() => openSplitMaskModal()}
+                  disabled={isPrompting || !activeLayerId}
+                  style={{
+                    fontSize: 10,
+                    padding: '4px 6px',
+                    backgroundColor: '#e1f4df',
+                    border: '1px solid #10b981',
+                    color: '#0f3e17',
+                    fontWeight: 700,
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <Split size={12} /> Configure & Split
+                </button>
+              </div>
+            )}
+
+            {/* Point / Scribble / Lasso / Eraser hints */}
+            {['point', 'scribble', 'lasso', 'bbox', 'eraser'].includes(activeTool) && (
+              <p style={{ fontSize: 9.5, color: '#556b5a', margin: '2px 0 0', lineHeight: 1.3 }}>
+                Click & drag in any 2D MPR slice view to seed interactive contours.
+              </p>
+            )}
+
+            {/* Calibrated Tools */}
+            {['ruler', 'angle'].includes(activeTool) && (
+              <p style={{ fontSize: 9.5, color: '#556b5a', margin: '2px 0 0', lineHeight: 1.3 }}>
+                Click landmark points in slice views to compute clinical metrics.
+              </p>
+            )}
+          </div>
 
           {/* Mode Switcher (+ Target / - Background) */}
           <div
             style={{
-              backgroundColor: '#12161f',
+              backgroundColor: '#fff',
               padding: 8,
               borderRadius: 6,
-              border: '1px solid #1e2634',
+              border: '1px solid #ded8cb',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
             }}
           >
             <div
               style={{
                 fontSize: 9.5,
-                color: '#64748b',
+                color: '#6b7c6e',
                 marginBottom: 4,
                 fontFamily: 'var(--font-sans)',
                 textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                letterSpacing: '0.06em',
                 fontWeight: 700,
               }}
             >
@@ -2094,13 +2250,12 @@ export default function SegmentPage() {
                 style={{
                   flex: 1,
                   padding: '4px 0',
-                  fontSize: 11,
+                  fontSize: 10.5,
                   borderRadius: 4,
-                  border: '1px solid',
-                  borderColor: includeMode ? '#22c55e' : '#242c38',
-                  backgroundColor: includeMode ? 'rgba(34, 197, 94, 0.2)' : '#151922',
-                  color: includeMode ? '#86efac' : '#94a3b8',
-                  fontWeight: includeMode ? 700 : 400,
+                  border: `1px solid ${includeMode ? '#10b981' : '#ded8cb'}`,
+                  backgroundColor: includeMode ? '#e1f4df' : '#fff',
+                  color: includeMode ? '#0f3e17' : '#556b5a',
+                  fontWeight: includeMode ? 700 : 500,
                   cursor: 'pointer',
                   fontFamily: 'var(--font-sans)',
                   transition: 'all 120ms ease',
@@ -2113,13 +2268,12 @@ export default function SegmentPage() {
                 style={{
                   flex: 1,
                   padding: '4px 0',
-                  fontSize: 11,
+                  fontSize: 10.5,
                   borderRadius: 4,
-                  border: '1px solid',
-                  borderColor: !includeMode ? '#ef4444' : '#242c38',
-                  backgroundColor: !includeMode ? 'rgba(239, 68, 68, 0.2)' : '#151922',
-                  color: !includeMode ? '#fca5a5' : '#94a3b8',
-                  fontWeight: !includeMode ? 700 : 400,
+                  border: `1px solid ${!includeMode ? '#ef4444' : '#ded8cb'}`,
+                  backgroundColor: !includeMode ? '#fee2e2' : '#fff',
+                  color: !includeMode ? '#991b1b' : '#556b5a',
+                  fontWeight: !includeMode ? 700 : 500,
                   cursor: 'pointer',
                   fontFamily: 'var(--font-sans)',
                   transition: 'all 120ms ease',
@@ -2130,324 +2284,64 @@ export default function SegmentPage() {
             </div>
           </div>
 
-          {/* 🪄 3D Region Growing Config (when activeTool === 'region_grow') */}
-          {activeTool === 'region_grow' && (
-            <div
-              style={{
-                backgroundColor: '#12161f',
-                padding: 10,
-                borderRadius: 6,
-                border: '1px solid #10b981',
-                boxShadow: '0 1px 6px rgba(16,185,129,0.15)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#86efac', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Zap size={13} color="#34d399" /> 3D Region Grow (HU)
-                </span>
-              </div>
-
-              {/* Quick Presets */}
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button
-                  onClick={() => { setRgMinHU(400); setRgMaxHU(3000); }}
-                  style={{
-                    flex: 1,
-                    fontSize: 9,
-                    padding: '3px 0',
-                    borderRadius: 4,
-                    border: '1px solid #10b981',
-                    backgroundColor: rgMinHU === 400 ? 'rgba(16,185,129,0.25)' : '#151922',
-                    color: '#86efac',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cortical (≥400)
-                </button>
-                <button
-                  onClick={() => { setRgMinHU(150); setRgMaxHU(3000); }}
-                  style={{
-                    flex: 1,
-                    fontSize: 9,
-                    padding: '3px 0',
-                    borderRadius: 4,
-                    border: '1px solid #10b981',
-                    backgroundColor: rgMinHU === 150 ? 'rgba(16,185,129,0.25)' : '#151922',
-                    color: '#86efac',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  All Bone (≥150)
-                </button>
-                <button
-                  onClick={() => { setRgMinHU(20); setRgMaxHU(120); }}
-                  style={{
-                    flex: 1,
-                    fontSize: 9,
-                    padding: '3px 0',
-                    borderRadius: 4,
-                    border: '1px solid #10b981',
-                    backgroundColor: rgMinHU === 20 ? 'rgba(16,185,129,0.25)' : '#151922',
-                    color: '#86efac',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Tissue (20-120)
-                </button>
-              </div>
-
-              {/* Min HU Slider */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
-                  <span>Min HU</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#38bdf8' }}>{rgMinHU} HU</span>
-                </div>
-                <input
-                  type="range"
-                  min="-200"
-                  max="1000"
-                  step="10"
-                  value={rgMinHU}
-                  onChange={(e) => setRgMinHU(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: '#10b981', height: 4 }}
-                />
-              </div>
-
-              {/* Max HU Slider */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
-                  <span>Max HU</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#38bdf8' }}>{rgMaxHU} HU</span>
-                </div>
-                <input
-                  type="range"
-                  min="200"
-                  max="3000"
-                  step="50"
-                  value={rgMaxHU}
-                  onChange={(e) => setRgMaxHU(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: '#10b981', height: 4 }}
-                />
-              </div>
-
-              {/* Search Radius Slider */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
-                  <span>Search Radius</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#38bdf8' }}>{rgRadius >= 200 ? 'Full Volume' : `${rgRadius} mm`}</span>
-                </div>
-                <input
-                  type="range"
-                  min="10"
-                  max="200"
-                  step="5"
-                  value={rgRadius}
-                  onChange={(e) => setRgRadius(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: '#10b981', height: 4 }}
-                />
-              </div>
-
-              {/* Hole Filling Checkbox */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, cursor: 'pointer', color: '#cbd5e1' }}>
-                <input
-                  type="checkbox"
-                  checked={rgFillHoles}
-                  onChange={(e) => setRgFillHoles(e.target.checked)}
-                  style={{ accentColor: '#10b981' }}
-                />
-                <span>Fill Internal Bone Cavities</span>
-              </label>
-            </div>
-          )}
-
-
-          {/* 🏝️ 3D Slicer Island Tools (when activeTool === 'island') */}
-          {activeTool === 'island' && (
-            <div
-              style={{
-                backgroundColor: '#12161f',
-                padding: 10,
-                borderRadius: 6,
-                border: '1px solid #38bdf8',
-                boxShadow: '0 1px 6px rgba(56,189,248,0.15)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}
-            >
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <LayersIcon size={13} color="#38bdf8" /> Island Filter (3D Slicer)
-              </span>
-              <p style={{ fontSize: 9.5, color: '#94a3b8', margin: 0 }}>
-                Click any bone in slice view to isolate it, or run 1-click filters:
-              </p>
-
-              <button
-                onClick={handleKeepLargestIsland}
-                disabled={isPrompting || !activeLayerId}
-                className="btn"
-                style={{
-                  fontSize: 10.5,
-                  padding: '5px 8px',
-                  backgroundColor: 'rgba(56,189,248,0.15)',
-                  border: '1px solid #38bdf8',
-                  color: '#38bdf8',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  justifyContent: 'center',
-                }}
-              >
-                👑 Keep Largest Island (Purge Table)
-              </button>
-
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button
-                  onClick={() => handleRemoveSmallIslands(islandMinSize)}
-                  disabled={isPrompting || !activeLayerId}
-                  className="btn"
-                  style={{
-                    flex: 1,
-                    fontSize: 9,
-                    padding: '4px 6px',
-                    backgroundColor: '#151922',
-                    border: '1px solid #242c38',
-                    color: '#cbd5e1',
-                    fontWeight: 500,
-                  }}
-                >
-                  Purge &lt; {islandMinSize} vx
-                </button>
-                <button
-                  onClick={() => openSplitMaskModal()}
-                  disabled={isPrompting || !activeLayerId}
-                  className="btn"
-                  style={{
-                    flex: 1,
-                    fontSize: 9,
-                    padding: '4px 6px',
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #38bdf8',
-                    color: '#38bdf8',
-                    fontWeight: 600,
-                  }}
-                >
-                  🗂️ Split Layers
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ✂️ Split Mask Quick Tool (when activeTool === 'split_mask') */}
-          {activeTool === 'split_mask' && (
-            <div
-              style={{
-                backgroundColor: '#12161f',
-                padding: 10,
-                borderRadius: 6,
-                border: '1px solid #0284c7',
-                boxShadow: '0 1px 6px rgba(2,132,199,0.15)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}
-            >
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Split size={13} color="#38bdf8" /> Split Mask Studio
-              </span>
-              <p style={{ fontSize: 9.5, color: '#94a3b8', margin: 0 }}>
-                Partition the active segmentation mask into separate layers by disconnected islands or plane cut:
-              </p>
-
-              <button
-                onClick={() => openSplitMaskModal()}
-                disabled={isPrompting || !activeLayerId}
-                className="btn"
-                style={{
-                  fontSize: 10.5,
-                  padding: '6px 8px',
-                  backgroundColor: '#0284c7',
-                  border: '1px solid #0284c7',
-                  color: '#fff',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  justifyContent: 'center',
-                  borderRadius: 6,
-                }}
-              >
-                <Split size={12} /> Configure & Split Mask
-              </button>
-            </div>
-          )}
-
-          {/* 🦴 Orthopedic Bone & Surgical Morphology Quick Tools */}
+          {/* 🦴 Surgical Bone Quick Filters */}
           <div
             style={{
-              backgroundColor: '#12161f',
+              backgroundColor: '#fff',
               padding: 8,
               borderRadius: 6,
-              border: '1px solid #1e2634',
+              border: '1px solid #ded8cb',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
               display: 'flex',
               flexDirection: 'column',
-              gap: 6,
+              gap: 5,
             }}
           >
             <span
               style={{
                 fontSize: 9.5,
                 fontWeight: 700,
-                color: '#64748b',
+                color: '#6b7c6e',
                 textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                letterSpacing: '0.06em',
                 fontFamily: 'var(--font-sans)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4,
               }}
             >
-              <Cpu size={11} /> Surgical Bone Filters
+              <Cpu size={11} color="#10b981" /> Surgical Bone Filters
             </span>
 
             <button
               onClick={() => handleApplyBoneThreshold(200, 3000)}
               disabled={isPrompting || !activeLayerId}
-              className="btn"
               style={{
                 fontSize: 10,
-                padding: '4px 8px',
-                backgroundColor: 'rgba(234, 179, 8, 0.15)',
-                border: '1px solid #eab308',
-                color: '#fef08a',
+                padding: '4px 6px',
+                backgroundColor: '#fefce8',
+                border: '1px solid #fef08a',
+                color: '#854d0e',
                 fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4,
+                borderRadius: 4,
+                cursor: 'pointer',
+                textAlign: 'center',
               }}
             >
               🦴 Extract Bone (≥200 HU)
             </button>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
               <button
                 onClick={() => handleApplyMorphology('fill_holes')}
                 disabled={isPrompting || !activeLayerId}
                 style={{
                   padding: '3px 4px',
                   fontSize: 9,
-                  borderRadius: 4,
-                  border: '1px solid #242c38',
-                  backgroundColor: '#151922',
-                  color: '#cbd5e1',
+                  borderRadius: 3,
+                  border: '1px solid #ded8cb',
+                  backgroundColor: '#fcfbf8',
+                  color: '#0f3e17',
                   cursor: 'pointer',
                 }}
               >
@@ -2459,10 +2353,10 @@ export default function SegmentPage() {
                 style={{
                   padding: '3px 4px',
                   fontSize: 9,
-                  borderRadius: 4,
-                  border: '1px solid #242c38',
-                  backgroundColor: '#151922',
-                  color: '#cbd5e1',
+                  borderRadius: 3,
+                  border: '1px solid #ded8cb',
+                  backgroundColor: '#fcfbf8',
+                  color: '#0f3e17',
                   cursor: 'pointer',
                 }}
               >
@@ -2474,10 +2368,10 @@ export default function SegmentPage() {
                 style={{
                   padding: '3px 4px',
                   fontSize: 9,
-                  borderRadius: 4,
-                  border: '1px solid #242c38',
-                  backgroundColor: '#151922',
-                  color: '#cbd5e1',
+                  borderRadius: 3,
+                  border: '1px solid #ded8cb',
+                  backgroundColor: '#fcfbf8',
+                  color: '#0f3e17',
                   cursor: 'pointer',
                 }}
               >
@@ -2489,10 +2383,10 @@ export default function SegmentPage() {
                 style={{
                   padding: '3px 4px',
                   fontSize: 9,
-                  borderRadius: 4,
-                  border: '1px solid #242c38',
-                  backgroundColor: '#151922',
-                  color: '#cbd5e1',
+                  borderRadius: 3,
+                  border: '1px solid #ded8cb',
+                  backgroundColor: '#fcfbf8',
+                  color: '#0f3e17',
                   cursor: 'pointer',
                 }}
               >
@@ -2502,8 +2396,8 @@ export default function SegmentPage() {
           </div>
 
           {/* Quick Actions (Undo / Redo / Reset / Clear) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ display: 'flex', gap: 3 }}>
               <button
                 onClick={handleUndoPrompt}
                 title="Undo prompt (Ctrl+Z)"
@@ -2512,18 +2406,18 @@ export default function SegmentPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 4,
+                  gap: 3,
                   padding: '4px 0',
                   fontSize: 10.5,
                   borderRadius: 4,
-                  border: '1px solid #242c38',
-                  backgroundColor: '#151922',
-                  color: '#cbd5e1',
+                  border: '1px solid #ded8cb',
+                  backgroundColor: '#fff',
+                  color: '#0f3e17',
                   cursor: 'pointer',
                   fontFamily: 'var(--font-sans)',
                 }}
               >
-                <Undo2 size={11} /> Undo
+                <Undo2 size={11} color="#0f3e17" /> Undo
               </button>
               <button
                 onClick={handleRedoPrompt}
@@ -2533,22 +2427,22 @@ export default function SegmentPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 4,
+                  gap: 3,
                   padding: '4px 0',
                   fontSize: 10.5,
                   borderRadius: 4,
-                  border: '1px solid #242c38',
-                  backgroundColor: '#151922',
-                  color: '#cbd5e1',
+                  border: '1px solid #ded8cb',
+                  backgroundColor: '#fff',
+                  color: '#0f3e17',
                   cursor: 'pointer',
                   fontFamily: 'var(--font-sans)',
                 }}
               >
-                <Redo2 size={11} /> Redo
+                <Redo2 size={11} color="#0f3e17" /> Redo
               </button>
             </div>
 
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 3 }}>
               <button
                 onClick={handleResetLayer}
                 disabled={!activeLayerId}
@@ -2557,18 +2451,18 @@ export default function SegmentPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 4,
+                  gap: 3,
                   padding: '4px 0',
                   fontSize: 10.5,
                   borderRadius: 4,
-                  border: '1px solid #242c38',
-                  backgroundColor: '#151922',
-                  color: '#cbd5e1',
+                  border: '1px solid #ded8cb',
+                  backgroundColor: '#fff',
+                  color: '#0f3e17',
                   cursor: 'pointer',
                   fontFamily: 'var(--font-sans)',
                 }}
               >
-                <RotateCcw size={11} /> Reset
+                <RotateCcw size={11} color="#0f3e17" /> Reset
               </button>
               {(rulers.length > 0 || angles.length > 0) && (
                 <button
@@ -2578,13 +2472,13 @@ export default function SegmentPage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 4,
+                    gap: 3,
                     padding: '4px 0',
                     fontSize: 10.5,
                     borderRadius: 4,
-                    border: '1px solid #242c38',
-                    backgroundColor: '#151922',
-                    color: '#fca5a5',
+                    border: '1px solid #fca5a5',
+                    backgroundColor: '#fee2e2',
+                    color: '#991b1b',
                     cursor: 'pointer',
                     fontFamily: 'var(--font-sans)',
                   }}
@@ -2596,29 +2490,40 @@ export default function SegmentPage() {
           </div>
 
           {/* Segmentation Layers Manager */}
-          <div style={{ flex: 1 }}>
+          <div
+            style={{
+              flex: 1,
+              backgroundColor: '#fff',
+              padding: 8,
+              borderRadius: 6,
+              border: '1px solid #ded8cb',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 5,
+            }}
+          >
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginBottom: 6,
               }}
             >
               <span
                 style={{
                   fontSize: 9.5,
                   fontWeight: 700,
-                  color: '#64748b',
+                  color: '#6b7c6e',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
+                  letterSpacing: '0.06em',
                   fontFamily: 'var(--font-sans)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 4,
                 }}
               >
-                <LayersIcon size={12} /> Layers ({layers.length})
+                <LayersIcon size={11} color="#10b981" /> Layers ({layers.length})
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {layers.length > 3 && (
@@ -2631,7 +2536,7 @@ export default function SegmentPage() {
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#64748b',
+                      color: '#6b7c6e',
                       cursor: 'pointer',
                       padding: 2,
                       display: 'flex',
@@ -2646,7 +2551,7 @@ export default function SegmentPage() {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#38bdf8',
+                    color: '#10b981',
                     cursor: 'pointer',
                     padding: 2,
                     display: 'flex',
@@ -2659,8 +2564,8 @@ export default function SegmentPage() {
 
             {/* Layer Search Filter (when more than 4 layers exist) */}
             {layers.length > 4 && (
-              <div style={{ marginBottom: 6, position: 'relative' }}>
-                <Search size={11} style={{ position: 'absolute', left: 7, top: 7, color: '#64748b' }} />
+              <div style={{ position: 'relative' }}>
+                <Search size={11} style={{ position: 'absolute', left: 6, top: 6, color: '#6b7c6e' }} />
                 <input
                   type="text"
                   placeholder="Filter structures..."
@@ -2668,12 +2573,12 @@ export default function SegmentPage() {
                   onChange={(e) => setLayerSearchQuery(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '4px 6px 4px 22px',
+                    padding: '3px 6px 3px 20px',
                     fontSize: 10.5,
                     borderRadius: 4,
-                    border: '1px solid #242c38',
-                    backgroundColor: '#12161f',
-                    color: '#f8fafc',
+                    border: '1px solid #ded8cb',
+                    backgroundColor: '#fcfbf8',
+                    color: '#0f3e17',
                     outline: 'none',
                     fontFamily: 'var(--font-sans)',
                   }}
@@ -2681,7 +2586,7 @@ export default function SegmentPage() {
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto', flex: 1 }}>
               {layers
                 .filter((l) => !layerSearchQuery || l.name.toLowerCase().includes(layerSearchQuery.toLowerCase()))
                 .map((l) => {
@@ -2692,22 +2597,22 @@ export default function SegmentPage() {
                       key={l.id}
                       onClick={() => setActiveLayerId(l.id)}
                       style={{
-                        padding: '6px 8px',
+                        padding: '5px 7px',
                         borderRadius: 5,
                         border: '1px solid',
-                        borderColor: isActive ? '#38bdf8' : '#1e2634',
-                        backgroundColor: isActive ? 'rgba(56, 189, 248, 0.12)' : '#12161f',
+                        borderColor: isActive ? '#10b981' : '#ded8cb',
+                        backgroundColor: isActive ? '#e1f4df' : '#fff',
                         cursor: 'pointer',
-                        fontSize: 11.5,
+                        fontSize: 11,
                         fontFamily: 'var(--font-sans)',
                         transition: 'all 120ms ease',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 4,
+                        gap: 3,
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <span
                             style={{
                               width: 8,
@@ -2719,14 +2624,14 @@ export default function SegmentPage() {
                           />
                           <span
                             style={{
-                              fontWeight: isActive ? 700 : 400,
-                              color: isActive ? '#38bdf8' : '#e2e8f0',
+                              fontWeight: isActive ? 700 : 500,
+                              color: isActive ? '#0f3e17' : '#222222',
                             }}
                           >
                             {l.name}
                           </span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2736,14 +2641,14 @@ export default function SegmentPage() {
                             style={{
                               background: 'none',
                               border: 'none',
-                              color: '#64748b',
+                              color: '#6b7c6e',
                               cursor: 'pointer',
                               padding: 2,
                               display: 'flex',
                               borderRadius: 3,
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = '#38bdf8')}
-                            onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = '#10b981')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = '#6b7c6e')}
                           >
                             <Split size={12} />
                           </button>
@@ -2757,7 +2662,7 @@ export default function SegmentPage() {
                               background: 'none',
                               border: 'none',
                               cursor: 'pointer',
-                              color: isVis ? '#38bdf8' : '#64748b',
+                              color: isVis ? '#10b981' : '#94a3b8',
                               padding: 2,
                               display: 'flex',
                             }}
@@ -2774,12 +2679,12 @@ export default function SegmentPage() {
                                 background: 'none',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#64748b',
+                                color: '#94a3b8',
                                 padding: 2,
                                 display: 'flex',
                               }}
                               onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                              onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
                             >
                               <X size={12} />
                             </button>
@@ -2790,9 +2695,9 @@ export default function SegmentPage() {
                       {isActive && (
                         <div
                           onClick={(e) => e.stopPropagation()}
-                          style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}
                         >
-                          <span style={{ fontSize: 9, color: '#64748b' }}>Opacity</span>
+                          <span style={{ fontSize: 8.5, color: '#6b7c6e' }}>Opacity</span>
                           <input
                             type="range"
                             min={0.1}
@@ -2800,9 +2705,9 @@ export default function SegmentPage() {
                             step={0.05}
                             value={l.opacity ?? 0.75}
                             onChange={(e) => handleUpdateLayerOpacity(l.id, Number(e.target.value))}
-                            style={{ flex: 1, height: 4, accentColor: '#38bdf8' }}
+                            style={{ flex: 1, height: 3, accentColor: '#10b981' }}
                           />
-                          <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: '#94a3b8' }}>
+                          <span style={{ fontSize: 8.5, fontFamily: 'var(--font-mono)', color: '#0f3e17', fontWeight: 600 }}>
                             {Math.round((l.opacity ?? 0.75) * 100)}%
                           </span>
                         </div>
@@ -2813,6 +2718,7 @@ export default function SegmentPage() {
             </div>
           </div>
         </aside>
+
 
 
         {/* Viewport Grid Container */}
