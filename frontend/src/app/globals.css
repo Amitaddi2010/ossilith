@@ -816,17 +816,58 @@ input[type="range"]::-moz-range-thumb {
 
 /* ── Mobile & iPad 3D Viewport & Touch Ergonomics ───────── */
 
+/* ── Comprehensive Responsive Breakpoints & Ergonomics ───────── */
+
+.touch-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.touch-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.responsive-container {
+  width: 100%;
+  max-width: var(--page-max-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: clamp(12px, 3vw, 32px);
+  padding-right: clamp(12px, 3vw, 32px);
+}
+
 @media (max-width: 1024px) {
-  /* Tablet / iPad Landscape & Portrait adjustments */
+  /* Tablet Landscape & Portrait adjustments */
   .editor-ribbon-scroll {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+  }
+
+  .desktop-only {
+    display: none !important;
   }
 }
 
 @media (max-width: 768px) {
   /* Mobile Phone Adjustments */
+  :root {
+    --text-display: clamp(34px, 8vw, 48px);
+    --text-heading: clamp(24px, 6vw, 32px);
+    --text-heading-sm: clamp(18px, 5vw, 22px);
+    --card-padding: 16px;
+    --section-gap: 40px;
+  }
+
+  .page {
+    padding: 14px 12px 32px !important;
+  }
+
+  .nav-header {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
   .editor-container {
     height: 100dvh !important;
     min-height: -webkit-fill-available;
@@ -839,6 +880,18 @@ input[type="range"]::-moz-range-thumb {
   .editor-ribbon-group-label {
     display: none !important;
   }
+
+  .modal-card {
+    width: 95% !important;
+    padding: 16px !important;
+    max-height: 90vh !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
+  }
 }
 
 /* 3D Canvas touch containment — prevents browser gesture interference */
@@ -848,5 +901,6 @@ canvas {
   -webkit-user-select: none !important;
   -webkit-touch-callout: none !important;
 }
+
 
 

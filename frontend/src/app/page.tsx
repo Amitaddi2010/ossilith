@@ -316,15 +316,15 @@ export default function HomePage() {
       </header>
 
       {/* ── Main Content Container ─────────────────────── */}
-      <main className="container" style={{ flex: 1, paddingBottom: 80 }}>
+      <main className="container" style={{ flex: 1, paddingBottom: 60, paddingLeft: 'clamp(12px, 3vw, 28px)', paddingRight: 'clamp(12px, 3vw, 28px)' }}>
         {/* ── 1. Hero Split Section with Live 3D Canvas ──── */}
         <section
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-            gap: 24,
-            marginTop: 28,
-            marginBottom: 64,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+            gap: 20,
+            marginTop: 20,
+            marginBottom: 48,
             alignItems: 'stretch',
           }}
         >
@@ -335,7 +335,7 @@ export default function HomePage() {
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              padding: '36px 32px',
+              padding: 'clamp(20px, 4vw, 36px) clamp(16px, 3.5vw, 32px)',
               borderRadius: 18,
             }}
           >

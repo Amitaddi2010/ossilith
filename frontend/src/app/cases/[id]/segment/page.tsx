@@ -942,6 +942,21 @@ export default function SegmentPage() {
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<VolumeMetadata | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 840;
+      setIsMobile(mobile);
+      if (mobile) {
+        setIsSidebarOpen(false);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
 
   // Independent slice indices for each axis
   const [axialSlice, setAxialSlice] = useState<number>(0);
@@ -1958,13 +1973,34 @@ export default function SegmentPage() {
       )}
 
       {/* ── Main View Area ───────────────────────────────── */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {/* Mobile Backdrop Overlay when Sidebar Drawer is open */}
+        {isMobile && isSidebarOpen && (
+          <div
+            onClick={() => setIsSidebarOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(10, 20, 12, 0.45)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 99,
+              transition: 'opacity 0.2s ease',
+            }}
+          />
+        )}
+
         {/* Left CAD Inspector & Layers Sidebar */}
         {isSidebarOpen ? (
           <aside
             className="animate-slide-in-left"
             style={{
-              width: 250,
+              width: isMobile ? 'min(300px, 85vw)' : 250,
+              position: isMobile ? 'fixed' : 'relative',
+              top: isMobile ? 0 : 'auto',
+              bottom: isMobile ? 0 : 'auto',
+              left: isMobile ? 0 : 'auto',
+              zIndex: isMobile ? 100 : 1,
+              boxShadow: isMobile ? '0 0 30px rgba(0,0,0,0.35)' : 'none',
               borderRight: '1px solid #ded8cb',
               backgroundColor: '#fcfbf8',
               padding: 10,
@@ -1999,11 +2035,11 @@ export default function SegmentPage() {
                   borderRadius: 4,
                   color: '#6b7c6e',
                   cursor: 'pointer',
-                  padding: '2px 5px',
+                  padding: '2px 6px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 3,
-                  fontSize: 9.5,
+                  fontSize: 10,
                   fontWeight: 600,
                 }}
                 onMouseEnter={(e) => {
@@ -2816,22 +2852,78 @@ export default function SegmentPage() {
           </main>
         ) : (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
+            {/* Mobile Viewport Quick-Switch Bar */}
+            {isMobile && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '5px 8px',
+                  backgroundColor: '#faf8f5',
+                  borderBottom: '1px solid #e8e4db',
+                  gap: 6,
+                  overflowX: 'auto',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['axial', 'coronal', 'sagittal', '3d'] as ViewMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setViewMode(mode)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 4,
+                        fontSize: 10,
+                        fontWeight: viewMode === mode ? 700 : 500,
+                        backgroundColor: viewMode === mode ? '#0f3e17' : '#fff',
+                        color: viewMode === mode ? '#fff' : '#556b5a',
+                        border: `1px solid ${viewMode === mode ? '#0f3e17' : '#d8d2c4'}`,
+                        cursor: 'pointer',
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {mode === '3d' ? '3D Mesh' : mode}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: 4,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    backgroundColor: '#e1f4df',
+                    color: '#0f3e17',
+                    border: '1px solid #b1dbb8',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  🎛 Layers ({layers.length})
+                </button>
+              </div>
+            )}
+
             <main
               style={{
                 flex: 1,
-                padding: 8,
+                padding: isMobile ? 4 : 8,
                 backgroundColor: '#0a0d0a',
                 display: 'grid',
-                gap: 6,
+                gap: isMobile ? 4 : 6,
                 gridTemplateColumns:
-                  viewMode === 'quad' ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+                  viewMode === 'quad' && !isMobile ? 'repeat(2, minmax(0, 1fr))' : '1fr',
                 gridTemplateRows:
-                  viewMode === 'quad' ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+                  viewMode === 'quad' && !isMobile ? 'repeat(2, minmax(0, 1fr))' : '1fr',
                 overflow: 'hidden',
               }}
             >
               {/* Quad or Single Axial View */}
-              {(viewMode === 'quad' || viewMode === 'axial') && (
+              {((viewMode === 'quad' && !isMobile) || viewMode === 'axial') && (
                 <SliceViewport
                   caseId={caseId}
                   axis="axial"
@@ -2869,7 +2961,7 @@ export default function SegmentPage() {
               )}
 
               {/* Quad or Single Coronal View */}
-              {(viewMode === 'quad' || viewMode === 'coronal') && (
+              {((viewMode === 'quad' && !isMobile) || viewMode === 'coronal') && (
                 <SliceViewport
                   caseId={caseId}
                   axis="coronal"
@@ -2907,7 +2999,7 @@ export default function SegmentPage() {
               )}
 
               {/* Quad or Single Sagittal View */}
-              {(viewMode === 'quad' || viewMode === 'sagittal') && (
+              {((viewMode === 'quad' && !isMobile) || viewMode === 'sagittal') && (
                 <SliceViewport
                   caseId={caseId}
                   axis="sagittal"
@@ -2945,7 +3037,7 @@ export default function SegmentPage() {
               )}
 
               {/* Quad or Single 3D Generation View */}
-              {(viewMode === 'quad' || viewMode === '3d') && (
+              {((viewMode === 'quad' && !isMobile) || viewMode === '3d') && (
                 <div
                   className="seg-viewport-dark"
                   style={{

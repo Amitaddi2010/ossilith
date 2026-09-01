@@ -345,21 +345,24 @@ export default function ContrastHistogramPanel({
         zIndex: 20,
       }}
     >
-      {/* ── Level 1: Toolbar Header (30px) ── */}
+      {/* ── Level 1: Toolbar Header (Responsive) ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 10px',
-          height: 30,
+          padding: '4px 8px',
+          minHeight: 30,
+          height: 'auto',
           backgroundColor: '#faf8f5',
           fontSize: 11,
           borderBottom: isOpen ? '1px solid #e8e4db' : 'none',
+          flexWrap: 'wrap',
+          gap: 6,
         }}
       >
         {/* Left: Tab Switches */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
           <button
             onClick={() => {
               setActiveTab('contrast');
@@ -377,6 +380,7 @@ export default function ContrastHistogramPanel({
               fontWeight: 700,
               cursor: 'pointer',
               height: 22,
+              whiteSpace: 'nowrap',
             }}
           >
             <Activity size={12} color={activeTab === 'contrast' ? '#10b981' : '#6b7c6e'} />
@@ -400,6 +404,7 @@ export default function ContrastHistogramPanel({
               fontWeight: 600,
               cursor: 'pointer',
               height: 22,
+              whiteSpace: 'nowrap',
             }}
           >
             <Terminal size={12} />
@@ -408,7 +413,7 @@ export default function ContrastHistogramPanel({
         </div>
 
         {/* Center: Interactive Min, Max & Preset Inputs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ color: '#6b7c6e', fontSize: 10.5 }}>Preset:</span>
             <select
