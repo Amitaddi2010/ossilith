@@ -412,7 +412,42 @@ export function subscribeToJob(
   };
 }
 
+// ── License Management ────────────────────────────────────
 
+export interface LicenseStatus {
+  is_active: boolean;
+  is_valid: boolean;
+  status: string;
+  tier: string;
+  customer: string;
+  organization: string;
+  hwid: string;
+  licensed_hwid?: string | null;
+  issued_date?: string | null;
+  expiry_date?: string | null;
+  days_remaining?: number | null;
+  features: string[];
+  is_trial: boolean;
+}
 
+export async function fetchLicenseStatus(): Promise<LicenseStatus> {
+  return apiFetch<LicenseStatus>('/api/license/status');
+}
 
+export async function fetchHardwareId(): Promise<{ hwid: string }> {
+  return apiFetch<{ hwid: string }>('/api/license/hwid');
+}
 
+export async function activateLicense(licenseKey: string): Promise<LicenseStatus> {
+  return apiFetch<LicenseStatus>('/api/license/activate', {
+    method: 'POST',
+    body: JSON.stringify({ license_key: licenseKey }),
+  });
+}
+
+export async function startEvaluationTrial(customerName?: string): Promise<LicenseStatus> {
+  return apiFetch<LicenseStatus>('/api/license/trial', {
+    method: 'POST',
+    body: JSON.stringify({ customer_name: customerName || 'Clinical Evaluation User' }),
+  });
+}

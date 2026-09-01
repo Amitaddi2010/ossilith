@@ -34,11 +34,16 @@ import {
   Crosshair,
   Maximize2,
   ExternalLink,
+  Key,
 } from 'lucide-react';
 import { useCaseStore } from '@/stores/caseStore';
+import { useLicenseStore } from '@/stores/licenseStore';
 import { getHealth, type HealthResponse } from '@/lib/api';
+import { LicenseActivationModal } from '@/components/license/LicenseActivationModal';
+
 
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+
 
 /* ── Interactive 3D Hero Foot Canvas (Foot.stl) ────────── */
 
@@ -162,12 +167,17 @@ export default function HomePage() {
   const [osteotomyAngle, setOsteotomyAngle] = useState<number>(12);
   const [selectedImplant, setSelectedImplant] = useState<string>('DCP Plate 3.5mm');
 
+  // License management
+  const { status: licenseStatus, loadLicense, openModal: openLicenseModal } = useLicenseStore();
+
   useEffect(() => {
     fetchCases();
     getHealth()
       .then(setHealth)
       .catch(() => {});
-  }, [fetchCases]);
+    loadLicense();
+  }, [fetchCases, loadLicense]);
+
 
 
   const handleCreateCase = async () => {
@@ -245,12 +255,46 @@ export default function HomePage() {
               Object.entries(health.services).map(([name, svc]: [string, any]) => (
                 <ServiceTag key={name} name={name} status={svc?.status || 'unknown'} />
               ))}
+            <button
+              className="btn btn-sm"
+              onClick={openLicenseModal}
+              style={{
+                gap: 6,
+                backgroundColor: licenseStatus?.is_valid && !licenseStatus?.is_trial
+                  ? 'rgba(16, 185, 129, 0.12)'
+                  : licenseStatus?.is_valid && licenseStatus?.is_trial
+                  ? 'rgba(245, 158, 11, 0.12)'
+                  : 'rgba(239, 68, 68, 0.12)',
+                color: licenseStatus?.is_valid && !licenseStatus?.is_trial
+                  ? '#059669'
+                  : licenseStatus?.is_valid && licenseStatus?.is_trial
+                  ? '#d97706'
+                  : '#dc2626',
+                border: `1px solid ${
+                  licenseStatus?.is_valid && !licenseStatus?.is_trial
+                    ? 'rgba(16, 185, 129, 0.3)'
+                    : licenseStatus?.is_valid && licenseStatus?.is_trial
+                    ? 'rgba(245, 158, 11, 0.3)'
+                    : 'rgba(239, 68, 68, 0.3)'
+                }`,
+                fontSize: 11,
+                fontWeight: 600,
+              }}
+            >
+              <Key size={13} />
+              {licenseStatus?.is_valid
+                ? licenseStatus.is_trial
+                  ? `TRIAL (${licenseStatus.days_remaining}d)`
+                  : 'PRO CLINICAL'
+                : 'ACTIVATE'}
+            </button>
             <button className="btn btn-secondary btn-sm" onClick={() => router.push('/editor')} style={{ gap: 6 }}>
               <Box size={14} color="var(--color-forest-ink)" /> 3D CAD Studio
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => setShowNewCase(true)} style={{ gap: 6 }}>
               <Plus size={14} /> New Case
             </button>
+
           </div>
         </nav>
       </header>
@@ -1023,6 +1067,10 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      {/* ── License Activation Modal ────────────────────── */}
+      <LicenseActivationModal />
     </div>
   );
 }
+
