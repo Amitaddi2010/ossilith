@@ -1909,44 +1909,13 @@ export default function SegmentPage() {
         isSimulatedMode={isSimulatedMode}
       />
 
-
-
-      {/* ── Clinical Safety Simulation Fallback Warning Banner (Compact) ── */}
-      {isSimulatedMode && (
-        <div
-          style={{
-            backgroundColor: '#fffbeb',
-            color: '#92400e',
-            padding: '4px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: 11,
-            borderBottom: '1px solid #fde68a',
-            zIndex: 15,
-          }}
-        >
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <AlertTriangle size={12} color="#d97706" />
-            <span style={{ fontWeight: 600 }}>Heuristic / Intensity Segmentation Mode Active</span>
-            <span style={{ color: '#b45309', opacity: 0.85, fontSize: 10.5 }}>
-              (nnInteractive neural backend offline — verifying intensity gradients)
-            </span>
-          </div>
-          <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, backgroundColor: '#fef3c7', color: '#92400e', fontWeight: 700, letterSpacing: '0.04em', border: '1px solid #fde68a' }}>
-            HEURISTIC INTENSITY
-          </span>
-        </div>
-      )}
-
-      {/* ── Auto-Segmentation Real-time Floating HUD Banner ── */}
+      {/* ── Auto-Segmentation Real-time Floating HUD Banner (Only when active) ── */}
       {isAutoSegmenting && (
         <div
           style={{
             backgroundColor: '#064e3b',
             color: '#ecfdf5',
-            padding: '7px 20px',
+            padding: '6px 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -1987,10 +1956,10 @@ export default function SegmentPage() {
         <aside
           className="animate-slide-in-left"
           style={{
-            width: 228,
+            width: 250,
             borderRight: '1px solid #ded8cb',
             backgroundColor: '#fcfbf8',
-            padding: 9,
+            padding: 10,
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
@@ -1998,14 +1967,14 @@ export default function SegmentPage() {
             userSelect: 'none',
           }}
         >
-          {/* Active Tool Dynamic Inspector */}
+          {/* Card 1: Active Tool Inspector & Parameters */}
           <div
             style={{
               backgroundColor: '#fff',
               padding: 9,
               borderRadius: 6,
               border: '1px solid #ded8cb',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
               display: 'flex',
               flexDirection: 'column',
               gap: 6,
@@ -2026,8 +1995,8 @@ export default function SegmentPage() {
               </span>
               <span
                 style={{
-                  fontSize: 9.5,
-                  padding: '1px 6px',
+                  fontSize: 10,
+                  padding: '2px 7px',
                   borderRadius: 4,
                   backgroundColor: '#e1f4df',
                   color: '#0f3e17',
@@ -2042,14 +2011,14 @@ export default function SegmentPage() {
             {/* Region Grow Parameters */}
             {activeTool === 'region_grow' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 2 }}>
-                <div style={{ display: 'flex', gap: 3 }}>
+                <div style={{ display: 'flex', gap: 4 }}>
                   <button
                     onClick={() => { setRgMinHU(400); setRgMaxHU(3000); }}
                     style={{
                       flex: 1,
-                      fontSize: 8.5,
-                      padding: '2px 0',
-                      borderRadius: 3,
+                      fontSize: 9,
+                      padding: '3px 0',
+                      borderRadius: 4,
                       border: `1px solid ${rgMinHU === 400 ? '#10b981' : '#ded8cb'}`,
                       backgroundColor: rgMinHU === 400 ? '#e1f4df' : '#fff',
                       color: rgMinHU === 400 ? '#0f3e17' : '#556b5a',
@@ -2063,9 +2032,9 @@ export default function SegmentPage() {
                     onClick={() => { setRgMinHU(150); setRgMaxHU(3000); }}
                     style={{
                       flex: 1,
-                      fontSize: 8.5,
-                      padding: '2px 0',
-                      borderRadius: 3,
+                      fontSize: 9,
+                      padding: '3px 0',
+                      borderRadius: 4,
                       border: `1px solid ${rgMinHU === 150 ? '#10b981' : '#ded8cb'}`,
                       backgroundColor: rgMinHU === 150 ? '#e1f4df' : '#fff',
                       color: rgMinHU === 150 ? '#0f3e17' : '#556b5a',
@@ -2078,8 +2047,8 @@ export default function SegmentPage() {
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: '#556b5a', marginBottom: 1 }}>
-                    <span>Min HU</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#556b5a', marginBottom: 2 }}>
+                    <span>Min Threshold</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#0f3e17' }}>{rgMinHU} HU</span>
                   </div>
                   <input
@@ -2094,8 +2063,8 @@ export default function SegmentPage() {
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: '#556b5a', marginBottom: 1 }}>
-                    <span>Max HU</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#556b5a', marginBottom: 2 }}>
+                    <span>Max Threshold</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#0f3e17' }}>{rgMaxHU} HU</span>
                   </div>
                   <input
@@ -2110,7 +2079,7 @@ export default function SegmentPage() {
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: '#556b5a', marginBottom: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#556b5a', marginBottom: 2 }}>
                     <span>Search Radius</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#0f3e17' }}>{rgRadius >= 200 ? 'Full' : `${rgRadius}mm`}</span>
                   </div>
@@ -2125,7 +2094,7 @@ export default function SegmentPage() {
                   />
                 </div>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, cursor: 'pointer', color: '#0f3e17' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, cursor: 'pointer', color: '#0f3e17' }}>
                   <input
                     type="checkbox"
                     checked={rgFillHoles}
@@ -2140,15 +2109,15 @@ export default function SegmentPage() {
             {/* Island Filter Parameters */}
             {activeTool === 'island' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 2 }}>
-                <p style={{ fontSize: 9.5, color: '#556b5a', margin: 0 }}>
+                <p style={{ fontSize: 10, color: '#556b5a', margin: 0 }}>
                   Click bone to isolate it, or run 1-click filter:
                 </p>
                 <button
                   onClick={handleKeepLargestIsland}
                   disabled={isPrompting || !activeLayerId}
                   style={{
-                    fontSize: 10,
-                    padding: '4px 6px',
+                    fontSize: 10.5,
+                    padding: '5px 8px',
                     backgroundColor: '#ecfdf5',
                     border: '1px solid #10b981',
                     color: '#065f46',
@@ -2163,8 +2132,8 @@ export default function SegmentPage() {
                   onClick={() => handleRemoveSmallIslands(islandMinSize)}
                   disabled={isPrompting || !activeLayerId}
                   style={{
-                    fontSize: 9.5,
-                    padding: '3px 6px',
+                    fontSize: 10,
+                    padding: '4px 8px',
                     backgroundColor: '#fff',
                     border: '1px solid #ded8cb',
                     color: '#0f3e17',
@@ -2180,15 +2149,15 @@ export default function SegmentPage() {
             {/* Split Mask Tool */}
             {activeTool === 'split_mask' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 2 }}>
-                <p style={{ fontSize: 9.5, color: '#556b5a', margin: 0 }}>
+                <p style={{ fontSize: 10, color: '#556b5a', margin: 0 }}>
                   Partition active mask into separate layers:
                 </p>
                 <button
                   onClick={() => openSplitMaskModal()}
                   disabled={isPrompting || !activeLayerId}
                   style={{
-                    fontSize: 10,
-                    padding: '4px 6px',
+                    fontSize: 10.5,
+                    padding: '5px 8px',
                     backgroundColor: '#e1f4df',
                     border: '1px solid #10b981',
                     color: '#0f3e17',
@@ -2206,92 +2175,263 @@ export default function SegmentPage() {
               </div>
             )}
 
-            {/* Point / Scribble / Lasso / Eraser hints */}
+            {/* General Tool Hints */}
             {['point', 'scribble', 'lasso', 'bbox', 'eraser'].includes(activeTool) && (
-              <p style={{ fontSize: 9.5, color: '#556b5a', margin: '2px 0 0', lineHeight: 1.3 }}>
+              <p style={{ fontSize: 10, color: '#556b5a', margin: '2px 0 0', lineHeight: 1.35 }}>
                 Click & drag in any 2D MPR slice view to seed interactive contours.
               </p>
             )}
 
-            {/* Calibrated Tools */}
             {['ruler', 'angle'].includes(activeTool) && (
-              <p style={{ fontSize: 9.5, color: '#556b5a', margin: '2px 0 0', lineHeight: 1.3 }}>
+              <p style={{ fontSize: 10, color: '#556b5a', margin: '2px 0 0', lineHeight: 1.35 }}>
                 Click landmark points in slice views to compute clinical metrics.
               </p>
             )}
           </div>
 
-          {/* Mode Switcher (+ Target / - Background) */}
+          {/* Card 2: Anatomical Structures & Layers Manager */}
           <div
             style={{
+              flex: 1,
               backgroundColor: '#fff',
-              padding: 8,
+              padding: 9,
               borderRadius: 6,
               border: '1px solid #ded8cb',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+              minHeight: 180,
             }}
           >
             <div
               style={{
-                fontSize: 9.5,
-                color: '#6b7c6e',
-                marginBottom: 4,
-                fontFamily: 'var(--font-sans)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
             >
-              Target Polarity
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  color: '#6b7c6e',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  fontFamily: 'var(--font-sans)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <LayersIcon size={12} color="#10b981" /> Layers ({layers.length})
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {layers.length > 2 && (
+                  <button
+                    onClick={() => {
+                      const anyHidden = layers.some((l) => l.visible === false);
+                      setLayers((prev) => prev.map((l) => ({ ...l, visible: anyHidden })));
+                    }}
+                    title="Toggle all visibility"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#6b7c6e',
+                      cursor: 'pointer',
+                      padding: 2,
+                      display: 'flex',
+                    }}
+                  >
+                    <Eye size={12} />
+                  </button>
+                )}
+                <button
+                  onClick={handleAddLayer}
+                  title="Add new layer"
+                  style={{
+                    background: '#e1f4df',
+                    border: '1px solid #b1dbb8',
+                    color: '#0f3e17',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                >
+                  <Plus size={11} /> Add
+                </button>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                onClick={() => setIncludeMode(true)}
-                style={{
-                  flex: 1,
-                  padding: '4px 0',
-                  fontSize: 10.5,
-                  borderRadius: 4,
-                  border: `1px solid ${includeMode ? '#10b981' : '#ded8cb'}`,
-                  backgroundColor: includeMode ? '#e1f4df' : '#fff',
-                  color: includeMode ? '#0f3e17' : '#556b5a',
-                  fontWeight: includeMode ? 700 : 500,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  transition: 'all 120ms ease',
-                }}
-              >
-                + Target
-              </button>
-              <button
-                onClick={() => setIncludeMode(false)}
-                style={{
-                  flex: 1,
-                  padding: '4px 0',
-                  fontSize: 10.5,
-                  borderRadius: 4,
-                  border: `1px solid ${!includeMode ? '#ef4444' : '#ded8cb'}`,
-                  backgroundColor: !includeMode ? '#fee2e2' : '#fff',
-                  color: !includeMode ? '#991b1b' : '#556b5a',
-                  fontWeight: !includeMode ? 700 : 500,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  transition: 'all 120ms ease',
-                }}
-              >
-                − Background
-              </button>
+
+            {/* Layer Search Filter */}
+            {layers.length > 4 && (
+              <div style={{ position: 'relative' }}>
+                <Search size={11} style={{ position: 'absolute', left: 6, top: 6, color: '#6b7c6e' }} />
+                <input
+                  type="text"
+                  placeholder="Filter structures..."
+                  value={layerSearchQuery}
+                  onChange={(e) => setLayerSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '3px 6px 3px 20px',
+                    fontSize: 10.5,
+                    borderRadius: 4,
+                    border: '1px solid #ded8cb',
+                    backgroundColor: '#fcfbf8',
+                    color: '#0f3e17',
+                    outline: 'none',
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', flex: 1 }}>
+              {layers
+                .filter((l) => !layerSearchQuery || l.name.toLowerCase().includes(layerSearchQuery.toLowerCase()))
+                .map((l) => {
+                  const isActive = activeLayerId === l.id;
+                  const isVis = l.visible !== false;
+                  return (
+                    <div
+                      key={l.id}
+                      onClick={() => setActiveLayerId(l.id)}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: 5,
+                        border: '1px solid',
+                        borderColor: isActive ? '#10b981' : '#ded8cb',
+                        backgroundColor: isActive ? '#e1f4df' : '#fff',
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        fontFamily: 'var(--font-sans)',
+                        transition: 'all 120ms ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span
+                            style={{
+                              width: 9,
+                              height: 9,
+                              borderRadius: '50%',
+                              backgroundColor: l.color,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span
+                            style={{
+                              fontWeight: isActive ? 700 : 500,
+                              color: isActive ? '#0f3e17' : '#222222',
+                            }}
+                          >
+                            {l.name}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openSplitMaskModal(l.id);
+                            }}
+                            title="Split Mask into Layers"
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#6b7c6e',
+                              cursor: 'pointer',
+                              padding: 2,
+                              display: 'flex',
+                              borderRadius: 3,
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = '#10b981')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = '#6b7c6e')}
+                          >
+                            <Split size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleLayerVisibility(l.id);
+                            }}
+                            title={isVis ? 'Hide Layer Overlay' : 'Show Layer Overlay'}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: isVis ? '#10b981' : '#94a3b8',
+                              padding: 2,
+                              display: 'flex',
+                            }}
+                          >
+                            {isVis ? <Eye size={12} /> : <EyeOff size={12} />}
+                          </button>
+                          {layers.length > 1 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteLayer(l.id);
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#94a3b8',
+                                padding: 2,
+                                display: 'flex',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {isActive && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}
+                        >
+                          <span style={{ fontSize: 9, color: '#6b7c6e' }}>Opacity</span>
+                          <input
+                            type="range"
+                            min={0.1}
+                            max={1.0}
+                            step={0.05}
+                            value={l.opacity ?? 0.75}
+                            onChange={(e) => handleUpdateLayerOpacity(l.id, Number(e.target.value))}
+                            style={{ flex: 1, height: 3, accentColor: '#10b981' }}
+                          />
+                          <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: '#0f3e17', fontWeight: 700 }}>
+                            {Math.round((l.opacity ?? 0.75) * 100)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </div>
 
-          {/* 🦴 Surgical Bone Quick Filters */}
+          {/* Card 3: 1-Click Surgical Bone Filters */}
           <div
             style={{
               backgroundColor: '#fff',
               padding: 8,
               borderRadius: 6,
               border: '1px solid #ded8cb',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
               display: 'flex',
               flexDirection: 'column',
               gap: 5,
@@ -2310,7 +2450,7 @@ export default function SegmentPage() {
                 gap: 4,
               }}
             >
-              <Cpu size={11} color="#10b981" /> Surgical Bone Filters
+              <Cpu size={11} color="#10b981" /> Fast Bone Filters
             </span>
 
             <button
@@ -2328,7 +2468,7 @@ export default function SegmentPage() {
                 textAlign: 'center',
               }}
             >
-              🦴 Extract Bone (≥200 HU)
+              🦴 Bone Envelope (≥200 HU)
             </button>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
@@ -2395,329 +2535,74 @@ export default function SegmentPage() {
             </div>
           </div>
 
-          {/* Quick Actions (Undo / Redo / Reset / Clear) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <div style={{ display: 'flex', gap: 3 }}>
-              <button
-                onClick={handleUndoPrompt}
-                title="Undo prompt (Ctrl+Z)"
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 3,
-                  padding: '4px 0',
-                  fontSize: 10.5,
-                  borderRadius: 4,
-                  border: '1px solid #ded8cb',
-                  backgroundColor: '#fff',
-                  color: '#0f3e17',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                <Undo2 size={11} color="#0f3e17" /> Undo
-              </button>
-              <button
-                onClick={handleRedoPrompt}
-                title="Redo prompt (Ctrl+Y)"
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 3,
-                  padding: '4px 0',
-                  fontSize: 10.5,
-                  borderRadius: 4,
-                  border: '1px solid #ded8cb',
-                  backgroundColor: '#fff',
-                  color: '#0f3e17',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                <Redo2 size={11} color="#0f3e17" /> Redo
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', gap: 3 }}>
-              <button
-                onClick={handleResetLayer}
-                disabled={!activeLayerId}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 3,
-                  padding: '4px 0',
-                  fontSize: 10.5,
-                  borderRadius: 4,
-                  border: '1px solid #ded8cb',
-                  backgroundColor: '#fff',
-                  color: '#0f3e17',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                <RotateCcw size={11} color="#0f3e17" /> Reset
-              </button>
-              {(rulers.length > 0 || angles.length > 0) && (
-                <button
-                  onClick={handleClearMeasurements}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 3,
-                    padding: '4px 0',
-                    fontSize: 10.5,
-                    borderRadius: 4,
-                    border: '1px solid #fca5a5',
-                    backgroundColor: '#fee2e2',
-                    color: '#991b1b',
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-sans)',
-                  }}
-                >
-                  Clear Cal
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Segmentation Layers Manager */}
-          <div
-            style={{
-              flex: 1,
-              backgroundColor: '#fff',
-              padding: 8,
-              borderRadius: 6,
-              border: '1px solid #ded8cb',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 5,
-            }}
-          >
-            <div
+          {/* Card 4: Quick Actions (Undo / Redo / Reset) */}
+          <div style={{ display: 'flex', gap: 3 }}>
+            <button
+              onClick={handleUndoPrompt}
+              title="Undo prompt (Ctrl+Z)"
               style={{
+                flex: 1,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                justifyContent: 'center',
+                gap: 3,
+                padding: '4px 0',
+                fontSize: 10.5,
+                borderRadius: 4,
+                border: '1px solid #ded8cb',
+                backgroundColor: '#fff',
+                color: '#0f3e17',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
               }}
             >
-              <span
-                style={{
-                  fontSize: 9.5,
-                  fontWeight: 700,
-                  color: '#6b7c6e',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  fontFamily: 'var(--font-sans)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <LayersIcon size={11} color="#10b981" /> Layers ({layers.length})
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {layers.length > 3 && (
-                  <button
-                    onClick={() => {
-                      const anyHidden = layers.some((l) => l.visible === false);
-                      setLayers((prev) => prev.map((l) => ({ ...l, visible: anyHidden })));
-                    }}
-                    title="Toggle all visibility"
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#6b7c6e',
-                      cursor: 'pointer',
-                      padding: 2,
-                      display: 'flex',
-                    }}
-                  >
-                    <Eye size={12} />
-                  </button>
-                )}
-                <button
-                  onClick={handleAddLayer}
-                  title="Add new layer"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#10b981',
-                    cursor: 'pointer',
-                    padding: 2,
-                    display: 'flex',
-                  }}
-                >
-                  <Plus size={14} />
-                </button>
-              </div>
-            </div>
-
-            {/* Layer Search Filter (when more than 4 layers exist) */}
-            {layers.length > 4 && (
-              <div style={{ position: 'relative' }}>
-                <Search size={11} style={{ position: 'absolute', left: 6, top: 6, color: '#6b7c6e' }} />
-                <input
-                  type="text"
-                  placeholder="Filter structures..."
-                  value={layerSearchQuery}
-                  onChange={(e) => setLayerSearchQuery(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '3px 6px 3px 20px',
-                    fontSize: 10.5,
-                    borderRadius: 4,
-                    border: '1px solid #ded8cb',
-                    backgroundColor: '#fcfbf8',
-                    color: '#0f3e17',
-                    outline: 'none',
-                    fontFamily: 'var(--font-sans)',
-                  }}
-                />
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto', flex: 1 }}>
-              {layers
-                .filter((l) => !layerSearchQuery || l.name.toLowerCase().includes(layerSearchQuery.toLowerCase()))
-                .map((l) => {
-                  const isActive = activeLayerId === l.id;
-                  const isVis = l.visible !== false;
-                  return (
-                    <div
-                      key={l.id}
-                      onClick={() => setActiveLayerId(l.id)}
-                      style={{
-                        padding: '5px 7px',
-                        borderRadius: 5,
-                        border: '1px solid',
-                        borderColor: isActive ? '#10b981' : '#ded8cb',
-                        backgroundColor: isActive ? '#e1f4df' : '#fff',
-                        cursor: 'pointer',
-                        fontSize: 11,
-                        fontFamily: 'var(--font-sans)',
-                        transition: 'all 120ms ease',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 3,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: '50%',
-                              backgroundColor: l.color,
-                              flexShrink: 0,
-                            }}
-                          />
-                          <span
-                            style={{
-                              fontWeight: isActive ? 700 : 500,
-                              color: isActive ? '#0f3e17' : '#222222',
-                            }}
-                          >
-                            {l.name}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openSplitMaskModal(l.id);
-                            }}
-                            title="Split Mask into Layers"
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#6b7c6e',
-                              cursor: 'pointer',
-                              padding: 2,
-                              display: 'flex',
-                              borderRadius: 3,
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = '#10b981')}
-                            onMouseLeave={(e) => (e.currentTarget.style.color = '#6b7c6e')}
-                          >
-                            <Split size={12} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleLayerVisibility(l.id);
-                            }}
-                            title={isVis ? 'Hide Layer Overlay' : 'Show Layer Overlay'}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              color: isVis ? '#10b981' : '#94a3b8',
-                              padding: 2,
-                              display: 'flex',
-                            }}
-                          >
-                            {isVis ? <Eye size={12} /> : <EyeOff size={12} />}
-                          </button>
-                          {layers.length > 1 && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteLayer(l.id);
-                              }}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                color: '#94a3b8',
-                                padding: 2,
-                                display: 'flex',
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                              onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
-                            >
-                              <X size={12} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {isActive && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}
-                        >
-                          <span style={{ fontSize: 8.5, color: '#6b7c6e' }}>Opacity</span>
-                          <input
-                            type="range"
-                            min={0.1}
-                            max={1.0}
-                            step={0.05}
-                            value={l.opacity ?? 0.75}
-                            onChange={(e) => handleUpdateLayerOpacity(l.id, Number(e.target.value))}
-                            style={{ flex: 1, height: 3, accentColor: '#10b981' }}
-                          />
-                          <span style={{ fontSize: 8.5, fontFamily: 'var(--font-mono)', color: '#0f3e17', fontWeight: 600 }}>
-                            {Math.round((l.opacity ?? 0.75) * 100)}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
+              <Undo2 size={11} color="#0f3e17" /> Undo
+            </button>
+            <button
+              onClick={handleRedoPrompt}
+              title="Redo prompt (Ctrl+Y)"
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 3,
+                padding: '4px 0',
+                fontSize: 10.5,
+                borderRadius: 4,
+                border: '1px solid #ded8cb',
+                backgroundColor: '#fff',
+                color: '#0f3e17',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              <Redo2 size={11} color="#0f3e17" /> Redo
+            </button>
+            <button
+              onClick={handleResetLayer}
+              disabled={!activeLayerId}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 3,
+                padding: '4px 0',
+                fontSize: 10.5,
+                borderRadius: 4,
+                border: '1px solid #ded8cb',
+                backgroundColor: '#fff',
+                color: '#0f3e17',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              <RotateCcw size={11} color="#0f3e17" /> Reset
+            </button>
           </div>
         </aside>
+
 
 
 

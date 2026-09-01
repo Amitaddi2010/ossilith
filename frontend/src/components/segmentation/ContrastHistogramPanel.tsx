@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Maximize2, Minimize2, Sliders, Activity, Terminal, Layers } from 'lucide-react';
+import { ChevronUp, ChevronDown, Activity, Terminal, Layers, Sliders } from 'lucide-react';
 import { API_BASE } from '@/lib/api';
 
 export type GrayscalePreset =
@@ -21,11 +21,11 @@ export interface ContrastScale {
 
 export const GRAYSCALE_PRESETS: ContrastScale[] = [
   { id: 'custom', label: 'Custom scale', min: -1024, max: 2200 },
-  { id: 'bone', label: 'Bone Scale', min: 100, max: 1800 },
-  { id: 'soft_tissue', label: 'Soft tissue scale', min: -150, max: 250 },
-  { id: 'narrow', label: 'Narrow scale', min: 300, max: 900 },
-  { id: 'wide', label: 'Wide scale', min: -1024, max: 2200 },
-  { id: 'mri', label: 'MRI Scale', min: 0, max: 2500 },
+  { id: 'bone', label: 'Bone Scale (100..1800)', min: 100, max: 1800 },
+  { id: 'soft_tissue', label: 'Soft tissue (-150..250)', min: -150, max: 250 },
+  { id: 'narrow', label: 'Narrow scale (300..900)', min: 300, max: 900 },
+  { id: 'wide', label: 'Wide scale (-1024..2200)', min: -1024, max: 2200 },
+  { id: 'mri', label: 'MRI Scale (0..2500)', min: 0, max: 2500 },
 ];
 
 interface ContrastHistogramPanelProps {
@@ -45,14 +45,13 @@ export default function ContrastHistogramPanel({
   activePreset,
   onPresetChange,
 }: ContrastHistogramPanelProps) {
-  const [activeTab, setActiveTab] = useState<'log' | 'volume' | 'contrast'>('contrast');
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<'contrast' | 'log' | 'volume'>('contrast');
+  const [isOpen, setIsOpen] = useState(false); // Collapsed by default to maximize CT slice viewports!
   const [histogramData, setHistogramData] = useState<number[]>([]);
   const [dataStats, setDataStats] = useState<{ min: number; max: number }>({ min: -1024, max: 3071 });
   const [isDragging, setIsDragging] = useState<'min' | 'max' | 'ramp' | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const HU_MIN = -1024;
   const HU_MAX = 3071;
@@ -105,10 +104,10 @@ export default function ContrastHistogramPanel({
     return Math.round(HU_MIN + pct * HU_RANGE);
   }, [HU_MIN, HU_RANGE]);
 
-  // 2. High-DPI Canvas Rendering
+  // 2. Canvas Rendering
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || activeTab !== 'contrast') return;
+    if (!canvas || !isOpen || activeTab !== 'contrast') return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -123,11 +122,11 @@ export default function ContrastHistogramPanel({
     ctx.scale(dpr, dpr);
 
     // Clear background
-    ctx.fillStyle = '#0f1410';
+    ctx.fillStyle = '#0e120f';
     ctx.fillRect(0, 0, width, height);
 
     // Grid lines
-    ctx.strokeStyle = '#1b241c';
+    ctx.strokeStyle = '#1a221b';
     ctx.lineWidth = 1;
     [0.25, 0.5, 0.75].forEach((ratio) => {
       ctx.beginPath();
@@ -151,8 +150,8 @@ export default function ContrastHistogramPanel({
     // Draw Histogram Area
     if (histogramData.length > 0) {
       const grad = ctx.createLinearGradient(0, 0, 0, height);
-      grad.addColorStop(0, 'rgba(16, 185, 129, 0.45)');
-      grad.addColorStop(1, 'rgba(16, 185, 129, 0.08)');
+      grad.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+      grad.addColorStop(1, 'rgba(16, 185, 129, 0.05)');
 
       ctx.beginPath();
       ctx.moveTo(0, height);
@@ -178,7 +177,7 @@ export default function ContrastHistogramPanel({
         else ctx.lineTo(x, y);
       });
       ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 1.3;
+      ctx.lineWidth = 1.4;
       ctx.stroke();
     }
 
@@ -214,7 +213,7 @@ export default function ContrastHistogramPanel({
 
     // Min Handle Circle
     ctx.beginPath();
-    ctx.arc(minX, bottomY, 5.5, 0, Math.PI * 2);
+    ctx.arc(minX, bottomY, 5, 0, Math.PI * 2);
     ctx.fillStyle = '#38bdf8';
     ctx.fill();
     ctx.lineWidth = 2;
@@ -223,15 +222,15 @@ export default function ContrastHistogramPanel({
 
     // Max Handle Circle
     ctx.beginPath();
-    ctx.arc(maxX, topY, 5.5, 0, Math.PI * 2);
+    ctx.arc(maxX, topY, 5, 0, Math.PI * 2);
     ctx.fillStyle = '#38bdf8';
     ctx.fill();
     ctx.lineWidth = 2;
     ctx.strokeStyle = '#ffffff';
     ctx.stroke();
-  }, [histogramData, minHu, maxHu, activeTab, huToX]);
+  }, [histogramData, minHu, maxHu, activeTab, isOpen, huToX]);
 
-  // Pointer Interaction for Dragging Handles
+  // Pointer Dragging
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -294,138 +293,151 @@ export default function ContrastHistogramPanel({
 
   return (
     <div
-      ref={containerRef}
       style={{
-        backgroundColor: '#fcfbf8',
-        borderTop: '1px solid #ded8cb',
+        backgroundColor: '#fff',
+        borderTop: '1px solid #d8d2c4',
         display: 'flex',
         flexDirection: 'column',
-        height: isExpanded ? 210 : 126,
-        transition: 'height 0.2s ease',
         userSelect: 'none',
         fontFamily: 'var(--font-sans, system-ui, -apple-system, sans-serif)',
         flexShrink: 0,
         zIndex: 20,
       }}
     >
-      {/* ── Top Tabs Bar ── */}
+      {/* ── Compact Status Bar Header (28px) ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1px solid #e5e0d4',
-          backgroundColor: '#f7f5ef',
-          padding: '0 8px',
+          padding: '0 10px',
           height: 28,
+          backgroundColor: '#faf8f5',
+          fontSize: 11,
         }}
       >
-        <div style={{ display: 'flex', gap: 2, height: '100%', alignItems: 'flex-end' }}>
+        {/* Left: Tab Indicators */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button
-            onClick={() => setActiveTab('log')}
+            onClick={() => {
+              setActiveTab('contrast');
+              if (!isOpen) setIsOpen(true);
+            }}
             style={{
-              padding: '3px 14px',
-              fontSize: 11,
-              fontWeight: 600,
-              backgroundColor: activeTab === 'log' ? '#fcfbf8' : 'transparent',
-              borderTop: activeTab === 'log' ? '2px solid #10b981' : '2px solid transparent',
-              borderLeft: activeTab === 'log' ? '1px solid #e5e0d4' : '1px solid transparent',
-              borderRight: activeTab === 'log' ? '1px solid #e5e0d4' : '1px solid transparent',
-              borderBottom: activeTab === 'log' ? '1px solid #fcfbf8' : 'none',
-              borderTopLeftRadius: 4,
-              borderTopRightRadius: 4,
-              color: activeTab === 'log' ? '#0f3e17' : '#6b7c6e',
-              cursor: 'pointer',
-              height: '100%',
-              marginBottom: -1,
               display: 'flex',
               alignItems: 'center',
               gap: 4,
+              padding: '2px 8px',
+              borderRadius: 4,
+              border: 'none',
+              backgroundColor: activeTab === 'contrast' ? '#e1f4df' : 'transparent',
+              color: activeTab === 'contrast' ? '#0f3e17' : '#556b5a',
+              fontWeight: 600,
+              cursor: 'pointer',
+              height: 22,
             }}
           >
-            <Terminal size={11} /> Log
+            <Activity size={11} color={activeTab === 'contrast' ? '#10b981' : '#6b7c6e'} />
+            <span>Contrast & Grayscale</span>
           </button>
+
           <button
-            onClick={() => setActiveTab('volume')}
+            onClick={() => {
+              setActiveTab('log');
+              if (!isOpen) setIsOpen(true);
+            }}
             style={{
-              padding: '3px 14px',
-              fontSize: 11,
-              fontWeight: 600,
-              backgroundColor: activeTab === 'volume' ? '#fcfbf8' : 'transparent',
-              borderTop: activeTab === 'volume' ? '2px solid #10b981' : '2px solid transparent',
-              borderLeft: activeTab === 'volume' ? '1px solid #e5e0d4' : '1px solid transparent',
-              borderRight: activeTab === 'volume' ? '1px solid #e5e0d4' : '1px solid transparent',
-              borderBottom: activeTab === 'volume' ? '1px solid #fcfbf8' : 'none',
-              borderTopLeftRadius: 4,
-              borderTopRightRadius: 4,
-              color: activeTab === 'volume' ? '#0f3e17' : '#6b7c6e',
-              cursor: 'pointer',
-              height: '100%',
-              marginBottom: -1,
               display: 'flex',
               alignItems: 'center',
               gap: 4,
-            }}
-          >
-            <Layers size={11} /> Volume Rendering
-          </button>
-          <button
-            onClick={() => setActiveTab('contrast')}
-            style={{
-              padding: '3px 14px',
-              fontSize: 11,
+              padding: '2px 8px',
+              borderRadius: 4,
+              border: 'none',
+              backgroundColor: activeTab === 'log' ? '#e1f4df' : 'transparent',
+              color: activeTab === 'log' ? '#0f3e17' : '#556b5a',
               fontWeight: 600,
-              backgroundColor: activeTab === 'contrast' ? '#fcfbf8' : 'transparent',
-              borderTop: activeTab === 'contrast' ? '2px solid #10b981' : '2px solid transparent',
-              borderLeft: activeTab === 'contrast' ? '1px solid #e5e0d4' : '1px solid transparent',
-              borderRight: activeTab === 'contrast' ? '1px solid #e5e0d4' : '1px solid transparent',
-              borderBottom: activeTab === 'contrast' ? '1px solid #fcfbf8' : 'none',
-              borderTopLeftRadius: 4,
-              borderTopRightRadius: 4,
-              color: activeTab === 'contrast' ? '#0f3e17' : '#6b7c6e',
               cursor: 'pointer',
-              height: '100%',
-              marginBottom: -1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
+              height: 22,
             }}
           >
-            <Activity size={11} color={activeTab === 'contrast' ? '#10b981' : '#6b7c6e'} /> Contrast & Grayscale
+            <Terminal size={11} />
+            <span>Console Log</span>
           </button>
         </div>
 
+        {/* Center: Live Scale Summary */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 10.5 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ color: '#6b7c6e' }}>Preset:</span>
+            <select
+              value={activePreset}
+              onChange={(e) => handlePresetSelect(e.target.value as GrayscalePreset)}
+              style={{
+                fontSize: 10.5,
+                fontWeight: 600,
+                borderRadius: 4,
+                border: '1px solid #d8d2c4',
+                backgroundColor: '#fff',
+                color: '#0f3e17',
+                padding: '1px 4px',
+                outline: 'none',
+                cursor: 'pointer',
+                height: 20,
+              }}
+            >
+              {GRAYSCALE_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ color: '#6b7c6e' }}>Range:</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#0f3e17' }}>
+              [{minHu} .. {maxHu}] HU
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Drawer Expand / Collapse Toggle */}
         <button
-          onClick={() => setIsExpanded((prev) => !prev)}
-          title={isExpanded ? 'Collapse panel' : 'Expand panel'}
+          onClick={() => setIsOpen((prev) => !prev)}
+          title={isOpen ? 'Collapse histogram' : 'Expand histogram curve'}
           style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '2px 4px',
-            color: '#6b7c6e',
             display: 'flex',
             alignItems: 'center',
+            gap: 3,
+            border: '1px solid #d8d2c4',
+            backgroundColor: '#fff',
+            borderRadius: 4,
+            padding: '2px 6px',
+            fontSize: 10,
+            color: '#0f3e17',
+            cursor: 'pointer',
+            height: 20,
+            fontWeight: 600,
           }}
         >
-          {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          <span>{isOpen ? 'Hide Curve' : 'Show Curve'}</span>
+          {isOpen ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
         </button>
       </div>
 
-      {/* ── Tab Content: Contrast & Grayscale Curve ── */}
-      {activeTab === 'contrast' && (
+      {/* ── Collapsible Interactive Drawer (Height 90px when open) ── */}
+      {isOpen && activeTab === 'contrast' && (
         <div
           style={{
-            flex: 1,
+            height: 90,
             display: 'flex',
             flexDirection: 'column',
-            padding: '4px 12px 5px',
-            position: 'relative',
-            backgroundColor: '#fcfbf8',
+            padding: '4px 10px 4px',
+            backgroundColor: '#fff',
+            borderTop: '1px solid #e8e4db',
           }}
         >
-          {/* Main Interactive Canvas Area */}
-          <div style={{ flex: 1, position: 'relative', minHeight: 46, width: '100%' }}>
+          <div style={{ flex: 1, position: 'relative', width: '100%' }}>
             <canvas
               ref={canvasRef}
               onPointerDown={handlePointerDown}
@@ -437,20 +449,19 @@ export default function ContrastHistogramPanel({
                 display: 'block',
                 cursor: isDragging ? 'ew-resize' : 'crosshair',
                 borderRadius: 4,
-                border: '1px solid #ded8cb',
+                border: '1px solid #d8d2c4',
               }}
             />
           </div>
 
-          {/* HU X-Axis Scale Labels */}
           <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
-              fontSize: 9.5,
-              color: '#556b5a',
+              fontSize: 9,
+              color: '#6b7c6e',
               fontFamily: 'var(--font-mono, monospace)',
-              padding: '2px 4px 1px',
+              padding: '1px 2px 0',
               position: 'relative',
               fontWeight: 500,
             }}
@@ -461,125 +472,15 @@ export default function ContrastHistogramPanel({
             <span style={{ position: 'absolute', left: `${((2000 - HU_MIN) / HU_RANGE) * 100}%`, transform: 'translateX(-50%)' }}>2000</span>
             <span>3071</span>
           </div>
-
-          {/* ── Bottom Controls Row ── */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: 14,
-              paddingTop: 2,
-              fontSize: 11,
-            }}
-          >
-            {/* Grayscale Preset Dropdown */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, color: '#0f3e17', fontWeight: 600 }}>Grayscale Scale:</span>
-              <select
-                value={activePreset}
-                onChange={(e) => handlePresetSelect(e.target.value as GrayscalePreset)}
-                style={{
-                  padding: '2px 8px',
-                  fontSize: 11,
-                  borderRadius: 4,
-                  border: '1px solid #ded8cb',
-                  backgroundColor: '#fff',
-                  color: '#0f3e17',
-                  fontWeight: 600,
-                  outline: 'none',
-                  cursor: 'pointer',
-                  height: 22,
-                }}
-              >
-                {GRAYSCALE_PRESETS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Min HU Input */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, color: '#0f3e17', fontWeight: 600 }}>Min HU:</span>
-              <input
-                type="number"
-                value={minHu}
-                step={10}
-                min={-2000}
-                max={maxHu - 10}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (!isNaN(val) && val < maxHu) {
-                    onMinMaxChange(val, maxHu, 'custom');
-                  }
-                }}
-                style={{
-                  width: 64,
-                  padding: '1px 6px',
-                  fontSize: 11,
-                  fontFamily: 'var(--font-mono, monospace)',
-                  borderRadius: 4,
-                  border: '1px solid #ded8cb',
-                  textAlign: 'right',
-                  backgroundColor: '#fff',
-                  color: '#0f3e17',
-                  fontWeight: 700,
-                  height: 22,
-                }}
-              />
-            </div>
-
-            {/* Max HU Input */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, color: '#0f3e17', fontWeight: 600 }}>Max HU:</span>
-              <input
-                type="number"
-                value={maxHu}
-                step={10}
-                min={minHu + 10}
-                max={4000}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (!isNaN(val) && val > minHu) {
-                    onMinMaxChange(minHu, val, 'custom');
-                  }
-                }}
-                style={{
-                  width: 64,
-                  padding: '1px 6px',
-                  fontSize: 11,
-                  fontFamily: 'var(--font-mono, monospace)',
-                  borderRadius: 4,
-                  border: '1px solid #ded8cb',
-                  textAlign: 'right',
-                  backgroundColor: '#fff',
-                  color: '#0f3e17',
-                  fontWeight: 700,
-                  height: 22,
-                }}
-              />
-            </div>
-          </div>
         </div>
       )}
 
-      {/* Log Tab */}
-      {activeTab === 'log' && (
-        <div style={{ flex: 1, padding: 10, fontSize: 11, color: '#334155', overflowY: 'auto', backgroundColor: '#fcfbf8', fontFamily: 'var(--font-mono, monospace)' }}>
+      {/* Log Drawer */}
+      {isOpen && activeTab === 'log' && (
+        <div style={{ height: 90, padding: 8, fontSize: 10.5, color: '#334155', overflowY: 'auto', backgroundColor: '#faf8f5', fontFamily: 'var(--font-mono, monospace)' }}>
           <div>[SYSTEM] Multi-Planar Reconstruction (MPR) Engine Active.</div>
-          <div>[INFO] CT Voxel space dynamic range: [{dataStats.min} HU .. {dataStats.max} HU]</div>
+          <div>[INFO] Dynamic Voxel Range: [{dataStats.min} HU .. {dataStats.max} HU]</div>
           <div>[GPU] Real-time slice windowing & grayscale transfer pipeline calibrated.</div>
-        </div>
-      )}
-
-      {/* Volume Rendering Tab */}
-      {activeTab === 'volume' && (
-        <div style={{ flex: 1, padding: 10, fontSize: 11, color: '#334155', display: 'flex', gap: 20, alignItems: 'center', backgroundColor: '#fcfbf8' }}>
-          <span>Volume Raycasting Opacity: <strong style={{ color: '#0f3e17' }}>100%</strong></span>
-          <span>Iso-surface Threshold: <strong style={{ color: '#0f3e17' }}>{minHu} HU</strong></span>
-          <span>Shading Model: <strong style={{ color: '#0f3e17' }}>Phong Blinn Bone</strong></span>
         </div>
       )}
     </div>

@@ -8,8 +8,6 @@ import {
   Maximize2,
   Box,
   Hand,
-  ZoomIn,
-  ZoomOut,
   Sliders,
   Crosshair,
   Zap,
@@ -31,23 +29,14 @@ import {
   Cpu,
   Brain,
   SlidersHorizontal,
-  ChevronDown,
   FileDown,
   Printer,
-  CheckCircle2,
-  RefreshCw,
-  Eye,
-  Settings,
   Binary,
+  Check,
+  RotateCcw,
 } from 'lucide-react';
 
-export type RibbonTab =
-  | 'view'
-  | 'interactive'
-  | 'autoseg'
-  | 'measure'
-  | 'export'
-  | 'license';
+export type RibbonTab = 'interactive' | 'view' | 'autoseg' | 'measure' | 'export' | 'license';
 
 export type SegTool =
   | 'region_grow'
@@ -130,22 +119,21 @@ export default function RibbonMenu({
 }: RibbonMenuProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<RibbonTab>('interactive');
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const TABS: { id: RibbonTab; label: string; icon: any; badge?: string }[] = [
-    { id: 'view', label: 'View & Layout', icon: Grid2X2 },
-    { id: 'interactive', label: 'Interactive CAD', icon: Zap, badge: 'Active' },
+    { id: 'interactive', label: 'Interactive CAD', icon: Zap },
+    { id: 'view', label: 'View & Windowing', icon: Grid2X2 },
     { id: 'autoseg', label: 'AI Auto-Seg', icon: Sparkles, badge: 'AI' },
-    { id: 'measure', label: 'Measure & HU', icon: Ruler },
+    { id: 'measure', label: 'Measurements', icon: Ruler, badge: measurementCount > 0 ? `${measurementCount}` : undefined },
     { id: 'export', label: '3D Export & Print', icon: Download },
-    { id: 'license', label: 'License & System', icon: ShieldCheck },
+    { id: 'license', label: 'System & License', icon: ShieldCheck },
   ];
 
   return (
-    <div
+    <header
       style={{
-        backgroundColor: '#fcfbf8',
-        borderBottom: '1px solid #e5e0d4',
+        backgroundColor: '#fff',
+        borderBottom: '1px solid #e2ded4',
         display: 'flex',
         flexDirection: 'column',
         userSelect: 'none',
@@ -153,109 +141,99 @@ export default function RibbonMenu({
         fontFamily: 'var(--font-sans, system-ui, -apple-system, sans-serif)',
       }}
     >
-      {/* ── Level 1: Primary Header & Ribbon Tabs ── */}
+      {/* ── Level 1: App Header Bar (36px) ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '0 12px',
-          height: 38,
-          backgroundColor: '#fff',
+          height: 36,
+          backgroundColor: '#faf8f5',
           borderBottom: '1px solid #e8e4db',
         }}
       >
-        {/* Left: Back & Case Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Left: Return, Case Title & Stage */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={() => router.push('/cases')}
-            title="Return to Patient Cases"
+            title="Return to Cases Dashboard"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 5,
-              background: '#f7f5ef',
-              border: '1px solid #ded8cb',
-              borderRadius: 6,
-              padding: '3px 9px',
+              gap: 4,
+              backgroundColor: '#fff',
+              border: '1px solid #d8d2c4',
+              borderRadius: 5,
+              padding: '2px 8px',
               color: '#0f3e17',
-              fontSize: 11.5,
+              fontSize: 11,
               fontWeight: 600,
               cursor: 'pointer',
-              height: 26,
+              height: 24,
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#e1f4df')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f7f5ef')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#fff')}
           >
-            <ArrowLeft size={13} color="#0f3e17" />
+            <ArrowLeft size={12} color="#0f3e17" />
             <span>Cases</span>
           </button>
 
-          <div style={{ height: 16, width: 1, backgroundColor: '#e5e0d4' }} />
+          <div style={{ height: 14, width: 1, backgroundColor: '#ded8cb' }} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#0f3e17', fontFamily: 'var(--font-serif, Georgia, serif)' }}>
-              {caseTitle || 'CT Volumetric Reconstruction'}
-            </span>
-            <span
-              style={{
-                fontSize: 9.5,
-                padding: '1px 6px',
-                borderRadius: 10,
-                backgroundColor: '#e1f4df',
-                color: '#0f3e17',
-                fontWeight: 700,
-                border: '1px solid #b1dbb8',
-              }}
-            >
-              Stage 3: CAD
-            </span>
-          </div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#0f3e17', letterSpacing: '-0.01em' }}>
+            {caseTitle || `Case #${caseId.slice(0, 8)}`}
+          </span>
+
+          <span
+            style={{
+              fontSize: 9,
+              padding: '1px 6px',
+              borderRadius: 10,
+              backgroundColor: '#e1f4df',
+              color: '#0f3e17',
+              fontWeight: 700,
+              border: '1px solid #b1dbb8',
+            }}
+          >
+            Stage 3: CAD
+          </span>
         </div>
 
-        {/* Center: Ribbon Primary Tabs */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 3, height: '100%' }}>
+        {/* Center: Clean Tab Switcher */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  if (isCollapsed) setIsCollapsed(false);
-                }}
+                onClick={() => setActiveTab(tab.id)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 5,
-                  padding: '0 12px',
+                  gap: 4,
+                  padding: '0 10px',
                   height: '100%',
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: isActive ? 700 : 500,
                   color: isActive ? '#0f3e17' : '#556b5a',
-                  backgroundColor: isActive ? '#fcfbf8' : 'transparent',
+                  backgroundColor: isActive ? '#fff' : 'transparent',
                   border: 'none',
                   borderBottom: isActive ? '2.5px solid #10b981' : '2.5px solid transparent',
                   cursor: 'pointer',
+                  transition: 'all 0.12s ease',
                   position: 'relative',
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.color = '#0f3e17';
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.color = '#556b5a';
                 }}
               >
-                <Icon size={14} color={isActive ? '#10b981' : '#6b7c6e'} />
+                <Icon size={13} color={isActive ? '#10b981' : '#6b7c6e'} />
                 <span>{tab.label}</span>
                 {tab.badge && (
                   <span
                     style={{
                       fontSize: 8.5,
                       padding: '0 4px',
-                      borderRadius: 3,
+                      borderRadius: 4,
                       backgroundColor: isActive ? '#10b981' : '#e1f4df',
                       color: isActive ? '#fff' : '#0f3e17',
                       fontWeight: 700,
@@ -269,49 +247,49 @@ export default function RibbonMenu({
           })}
         </nav>
 
-        {/* Right: Quick Tools & Status */}
+        {/* Right: Heuristic/Neural Status & Shortcuts */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {/* Neural / Fallback Indicator */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 5,
-              fontSize: 10.5,
-              padding: '2px 8px',
+              gap: 4,
+              fontSize: 10,
+              padding: '2px 7px',
               borderRadius: 4,
-              backgroundColor: isSimulatedMode ? '#fee2e2' : '#ecfdf5',
-              border: `1px solid ${isSimulatedMode ? '#fca5a5' : '#a7f3d0'}`,
-              color: isSimulatedMode ? '#991b1b' : '#065f46',
+              backgroundColor: isSimulatedMode ? '#fef3c7' : '#ecfdf5',
+              border: `1px solid ${isSimulatedMode ? '#fde68a' : '#a7f3d0'}`,
+              color: isSimulatedMode ? '#92400e' : '#065f46',
               fontWeight: 600,
             }}
           >
-            <Cpu size={11} color={isSimulatedMode ? '#dc2626' : '#10b981'} />
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                backgroundColor: isSimulatedMode ? '#d97706' : '#10b981',
+              }}
+            />
             <span>{isSimulatedMode ? 'Heuristic Mode' : 'GPU Neural'}</span>
           </div>
 
-          <div style={{ height: 16, width: 1, backgroundColor: '#e5e0d4' }} />
-
-          {/* Shortcuts Modal Button */}
           <button
             onClick={onOpenShortcuts}
             title="Keyboard Shortcuts (?)"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 4,
-              background: '#fff',
-              border: '1px solid #ded8cb',
-              borderRadius: 6,
-              padding: '2px 8px',
+              gap: 3,
+              backgroundColor: '#fff',
+              border: '1px solid #d8d2c4',
+              borderRadius: 5,
+              padding: '2px 6px',
               color: '#0f3e17',
-              fontSize: 11,
-              fontWeight: 500,
+              fontSize: 10.5,
               cursor: 'pointer',
-              height: 26,
+              height: 24,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f7f5ef')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#fff')}
           >
             <HelpCircle size={12} color="#0f3e17" />
             <span>Keys (?)</span>
@@ -319,550 +297,420 @@ export default function RibbonMenu({
         </div>
       </div>
 
-      {/* ── Level 2: Ribbon Toolbar Sections Deck ── */}
-      {!isCollapsed && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'stretch',
-            padding: '5px 10px 4px',
-            backgroundColor: '#fcfbf8',
-            minHeight: 74,
-            overflowX: 'auto',
-            gap: 6,
-          }}
-        >
-          {/* ========================================================= */}
-          {/* TAB 1: VIEW & LAYOUT                                      */}
-          {/* ========================================================= */}
-          {activeTab === 'view' && (
-            <>
-              <RibbonSection label="Viewport Layout">
-                <RibbonButton
-                  icon={Grid2X2}
-                  label="2×2 Quad MPR"
-                  sub="Axial / Cor / Sag / 3D"
-                  active={viewMode === 'quad'}
-                  onClick={() => onViewModeChange('quad')}
-                  large
-                />
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
-                  <RibbonButton
-                    label="Axial (Z)"
-                    active={viewMode === 'axial'}
-                    onClick={() => onViewModeChange('axial')}
-                    small
-                  />
-                  <RibbonButton
-                    label="Coronal (Y)"
-                    active={viewMode === 'coronal'}
-                    onClick={() => onViewModeChange('coronal')}
-                    small
-                  />
-                  <RibbonButton
-                    label="Sagittal (X)"
-                    active={viewMode === 'sagittal'}
-                    onClick={() => onViewModeChange('sagittal')}
-                    small
-                  />
-                  <RibbonButton
-                    label="3D Bone"
-                    active={viewMode === '3d'}
-                    onClick={() => onViewModeChange('3d')}
-                    small
-                  />
-                </div>
-              </RibbonSection>
+      {/* ── Level 2: Compact High-Precision Toolbar Deck (46px) ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '4px 10px',
+          backgroundColor: '#fff',
+          height: 48,
+          overflowX: 'auto',
+          gap: 6,
+        }}
+      >
+        {/* ========================================================= */}
+        {/* TAB 1: INTERACTIVE CAD                                    */}
+        {/* ========================================================= */}
+        {activeTab === 'interactive' && (
+          <>
+            <ToolbarGroup label="Seed & Grow">
+              <ToolItem
+                icon={Zap}
+                label="3D Region Grow"
+                hotkey="G"
+                active={activeTool === 'region_grow'}
+                onClick={() => onToolSelect('region_grow')}
+                highlight
+              />
+              <ToolItem
+                icon={Crosshair}
+                label="Point Click"
+                hotkey="P"
+                active={activeTool === 'point'}
+                onClick={() => onToolSelect('point')}
+              />
+            </ToolbarGroup>
 
-              <RibbonSection label="Navigation & Crosshairs">
-                <RibbonButton
-                  icon={Hand}
-                  label="Pan / Zoom"
-                  hotkey="H"
-                  active={activeTool === 'pan'}
-                  onClick={() => onToolSelect('pan')}
-                />
-                <RibbonButton
-                  icon={Crosshair}
-                  label="Crosshairs"
-                  sub={showCrosshairs ? 'Synchronized' : 'Hidden'}
-                  active={showCrosshairs}
-                  onClick={onToggleCrosshairs}
-                />
-              </RibbonSection>
+            <ToolbarGroup label="Target Polarity">
+              <button
+                onClick={() => { if (!includeMode) onToggleIncludeMode(); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '3px 8px',
+                  borderRadius: 4,
+                  backgroundColor: includeMode ? '#e1f4df' : '#fff',
+                  border: `1px solid ${includeMode ? '#10b981' : '#d8d2c4'}`,
+                  color: includeMode ? '#0f3e17' : '#556b5a',
+                  fontSize: 10.5,
+                  fontWeight: includeMode ? 700 : 500,
+                  cursor: 'pointer',
+                  height: 28,
+                }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 900, color: '#10b981' }}>+</span>
+                <span>Target</span>
+              </button>
 
-              <RibbonSection label="CT Windowing Presets">
-                <RibbonButton
-                  label="Bone CT"
-                  sub="W2000 / L400"
-                  active={windowPreset === 'bone'}
-                  onClick={() => onWindowPresetChange('bone', 2000, 400)}
-                />
-                <RibbonButton
-                  label="Soft Tissue"
-                  sub="W400 / L50"
-                  active={windowPreset === 'soft_tissue'}
-                  onClick={() => onWindowPresetChange('soft_tissue', 400, 50)}
-                />
-                <RibbonButton
-                  label="Lung CT"
-                  sub="W1500 / L-600"
-                  active={windowPreset === 'lung'}
-                  onClick={() => onWindowPresetChange('lung', 1500, -600)}
-                />
-                <RibbonButton
-                  label="Auto CT"
-                  sub="Full Dynamic"
-                  active={windowPreset === 'default'}
-                  onClick={() => onWindowPresetChange('default', null, null)}
-                />
-              </RibbonSection>
-            </>
-          )}
+              <button
+                onClick={() => { if (includeMode) onToggleIncludeMode(); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '3px 8px',
+                  borderRadius: 4,
+                  backgroundColor: !includeMode ? '#fee2e2' : '#fff',
+                  border: `1px solid ${!includeMode ? '#ef4444' : '#d8d2c4'}`,
+                  color: !includeMode ? '#991b1b' : '#556b5a',
+                  fontSize: 10.5,
+                  fontWeight: !includeMode ? 700 : 500,
+                  cursor: 'pointer',
+                  height: 28,
+                }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 900, color: '#ef4444' }}>−</span>
+                <span>Background</span>
+              </button>
+            </ToolbarGroup>
 
-          {/* ========================================================= */}
-          {/* TAB 2: INTERACTIVE CAD                                    */}
-          {/* ========================================================= */}
-          {activeTab === 'interactive' && (
-            <>
-              <RibbonSection label="Primary Seed & Grow">
-                <RibbonButton
-                  icon={Zap}
-                  label="3D Region Grow"
-                  sub="HU Threshold Spread"
-                  hotkey="G"
-                  active={activeTool === 'region_grow'}
-                  onClick={() => onToolSelect('region_grow')}
-                  large
-                  highlight
-                />
-                <RibbonButton
-                  icon={Crosshair}
-                  label="Point Click"
-                  sub="MITK Single Seed"
-                  hotkey="P"
-                  active={activeTool === 'point'}
-                  onClick={() => onToolSelect('point')}
-                />
-              </RibbonSection>
+            <ToolbarGroup label="Manual Brushes">
+              <ToolItem
+                icon={Pen}
+                label="Brush"
+                hotkey="S"
+                active={activeTool === 'scribble'}
+                onClick={() => onToolSelect('scribble')}
+              />
+              <ToolItem
+                icon={Lasso}
+                label="Lasso"
+                hotkey="L"
+                active={activeTool === 'lasso'}
+                onClick={() => onToolSelect('lasso')}
+              />
+              <ToolItem
+                icon={Square}
+                label="BBox"
+                hotkey="B"
+                active={activeTool === 'bbox'}
+                onClick={() => onToolSelect('bbox')}
+              />
+              <ToolItem
+                icon={Eraser}
+                label="Eraser"
+                hotkey="E"
+                active={activeTool === 'eraser'}
+                onClick={() => onToolSelect('eraser')}
+              />
+            </ToolbarGroup>
 
-              <RibbonSection label="Target Polarity">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 105 }}>
-                  <button
-                    onClick={() => { if (!includeMode) onToggleIncludeMode(); }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '4px 8px',
-                      borderRadius: 5,
-                      backgroundColor: includeMode ? '#e1f4df' : '#fff',
-                      border: `1px solid ${includeMode ? '#10b981' : '#ded8cb'}`,
-                      color: includeMode ? '#0f3e17' : '#556b5a',
-                      fontSize: 11,
-                      fontWeight: includeMode ? 700 : 500,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span style={{ fontSize: 13, fontWeight: 900, color: '#10b981' }}>+</span>
-                    <span>Target Bone</span>
-                  </button>
+            <ToolbarGroup label="Topology & Cleanup">
+              <ToolItem
+                icon={Layers}
+                label="Island Filter"
+                hotkey="I"
+                active={activeTool === 'island'}
+                onClick={() => onToolSelect('island')}
+              />
+              <ToolItem
+                icon={Split}
+                label="Split Mask"
+                hotkey="X"
+                active={activeTool === 'split_mask'}
+                onClick={onOpenSplitMaskModal}
+              />
+              <ToolItem
+                icon={Scissors}
+                label="Morphology"
+                onClick={onOpenMorphologyModal}
+              />
+            </ToolbarGroup>
+          </>
+        )}
 
-                  <button
-                    onClick={() => { if (includeMode) onToggleIncludeMode(); }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '4px 8px',
-                      borderRadius: 5,
-                      backgroundColor: !includeMode ? '#fee2e2' : '#fff',
-                      border: `1px solid ${!includeMode ? '#ef4444' : '#ded8cb'}`,
-                      color: !includeMode ? '#991b1b' : '#556b5a',
-                      fontSize: 11,
-                      fontWeight: !includeMode ? 700 : 500,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span style={{ fontSize: 13, fontWeight: 900, color: '#ef4444' }}>−</span>
-                    <span>Background</span>
-                  </button>
-                </div>
-              </RibbonSection>
+        {/* ========================================================= */}
+        {/* TAB 2: VIEW & WINDOWING                                   */}
+        {/* ========================================================= */}
+        {activeTab === 'view' && (
+          <>
+            <ToolbarGroup label="Viewport Layout">
+              <ToolItem
+                icon={Grid2X2}
+                label="2×2 Quad"
+                active={viewMode === 'quad'}
+                onClick={() => onViewModeChange('quad')}
+                highlight
+              />
+              <ToolItem
+                label="Axial (Z)"
+                active={viewMode === 'axial'}
+                onClick={() => onViewModeChange('axial')}
+              />
+              <ToolItem
+                label="Coronal (Y)"
+                active={viewMode === 'coronal'}
+                onClick={() => onViewModeChange('coronal')}
+              />
+              <ToolItem
+                label="Sagittal (X)"
+                active={viewMode === 'sagittal'}
+                onClick={() => onViewModeChange('sagittal')}
+              />
+              <ToolItem
+                icon={Box}
+                label="3D View"
+                active={viewMode === '3d'}
+                onClick={() => onViewModeChange('3d')}
+              />
+            </ToolbarGroup>
 
-              <RibbonSection label="Manual Drawing Tools">
-                <RibbonButton
-                  icon={Pen}
-                  label="Scribble Brush"
-                  hotkey="S"
-                  active={activeTool === 'scribble'}
-                  onClick={() => onToolSelect('scribble')}
-                />
-                <RibbonButton
-                  icon={Lasso}
-                  label="Lasso Polygon"
-                  hotkey="L"
-                  active={activeTool === 'lasso'}
-                  onClick={() => onToolSelect('lasso')}
-                />
-                <RibbonButton
-                  icon={Square}
-                  label="Bounding Box"
-                  hotkey="B"
-                  active={activeTool === 'bbox'}
-                  onClick={() => onToolSelect('bbox')}
-                />
-                <RibbonButton
-                  icon={Eraser}
-                  label="Eraser Brush"
-                  hotkey="E"
-                  active={activeTool === 'eraser'}
-                  onClick={() => onToolSelect('eraser')}
-                />
-              </RibbonSection>
+            <ToolbarGroup label="Navigation">
+              <ToolItem
+                icon={Hand}
+                label="Pan / Zoom"
+                hotkey="H"
+                active={activeTool === 'pan'}
+                onClick={() => onToolSelect('pan')}
+              />
+              <ToolItem
+                icon={Crosshair}
+                label="Crosshairs"
+                active={showCrosshairs}
+                onClick={onToggleCrosshairs}
+              />
+            </ToolbarGroup>
 
-              <RibbonSection label="Topology & Surgical Filters">
-                <RibbonButton
-                  icon={Layers}
-                  label="Island Filter"
-                  sub="Isolate Main Bone"
-                  hotkey="I"
-                  active={activeTool === 'island'}
-                  onClick={() => onToolSelect('island')}
-                />
-                <RibbonButton
-                  icon={Split}
-                  label="Split Mask"
-                  sub="Multi-Body Split"
-                  hotkey="X"
-                  onClick={onOpenSplitMaskModal}
-                />
-                <RibbonButton
-                  icon={SlidersHorizontal}
-                  label="HU Threshold"
-                  sub="Direct Density"
-                  onClick={onOpenThresholdModal}
-                />
-                <RibbonButton
-                  icon={Scissors}
-                  label="Morphology"
-                  sub="Dilate / Erode / Close"
-                  onClick={onOpenMorphologyModal}
-                />
-              </RibbonSection>
-            </>
-          )}
+            <ToolbarGroup label="Window Presets">
+              <ToolItem
+                label="Bone CT"
+                active={windowPreset === 'bone'}
+                onClick={() => onWindowPresetChange('bone', 2000, 400)}
+              />
+              <ToolItem
+                label="Soft Tissue"
+                active={windowPreset === 'soft_tissue'}
+                onClick={() => onWindowPresetChange('soft_tissue', 400, 50)}
+              />
+              <ToolItem
+                label="Lung CT"
+                active={windowPreset === 'lung'}
+                onClick={() => onWindowPresetChange('lung', 1500, -600)}
+              />
+              <ToolItem
+                label="Auto Dynamic"
+                active={windowPreset === 'default'}
+                onClick={() => onWindowPresetChange('default', null, null)}
+              />
+            </ToolbarGroup>
+          </>
+        )}
 
-          {/* ========================================================= */}
-          {/* TAB 3: AI AUTO-SEGMENTATION                               */}
-          {/* ========================================================= */}
-          {activeTab === 'autoseg' && (
-            <>
-              <RibbonSection label="Neural Inference Engine">
-                <RibbonButton
-                  icon={Sparkles}
-                  label="Launch Auto-Seg (AI)"
-                  sub="TotalSegmentator & MONAI"
-                  onClick={onOpenAutoSegModal}
-                  large
-                  highlight
-                />
-              </RibbonSection>
+        {/* ========================================================= */}
+        {/* TAB 3: AI AUTO-SEGMENTATION                               */}
+        {/* ========================================================= */}
+        {activeTab === 'autoseg' && (
+          <>
+            <ToolbarGroup label="AI Inference Engine">
+              <ToolItem
+                icon={Sparkles}
+                label="Launch AI Auto-Seg"
+                onClick={onOpenAutoSegModal}
+                highlight
+              />
+            </ToolbarGroup>
 
-              <RibbonSection label="Pre-trained Anatomical Presets">
-                <RibbonButton
-                  icon={Brain}
-                  label="Unified Skeleton"
-                  sub="All Skeletal Structures"
-                  onClick={onOpenAutoSegModal}
-                />
-                <RibbonButton
-                  icon={Layers}
-                  label="Extremity Bones"
-                  sub="Femur / Tibia / Arm"
-                  onClick={onOpenAutoSegModal}
-                />
-                <RibbonButton
-                  icon={Box}
-                  label="Spine & Pelvis"
-                  sub="Vertebrae / Pelvic Ring"
-                  onClick={onOpenAutoSegModal}
-                />
-              </RibbonSection>
-            </>
-          )}
+            <ToolbarGroup label="Anatomical Targets">
+              <ToolItem
+                icon={Brain}
+                label="Unified Skeleton"
+                onClick={onOpenAutoSegModal}
+              />
+              <ToolItem
+                icon={Layers}
+                label="Extremities (Limbs)"
+                onClick={onOpenAutoSegModal}
+              />
+              <ToolItem
+                icon={Box}
+                label="Spine & Pelvis"
+                onClick={onOpenAutoSegModal}
+              />
+            </ToolbarGroup>
+          </>
+        )}
 
-          {/* ========================================================= */}
-          {/* TAB 4: MEASURE & HU                                       */}
-          {/* ========================================================= */}
-          {activeTab === 'measure' && (
-            <>
-              <RibbonSection label="Calibrated Clinical Tools">
-                <RibbonButton
-                  icon={Ruler}
-                  label="Calibrated Ruler"
-                  sub="Millimeter Precision"
-                  hotkey="M"
-                  active={activeTool === 'ruler'}
-                  onClick={() => onToolSelect('ruler')}
-                  large
-                />
-                <RibbonButton
-                  icon={Activity}
-                  label="Cobb Angle"
-                  sub="Spine & Joint Angles"
-                  hotkey="N"
-                  active={activeTool === 'angle'}
-                  onClick={() => onToolSelect('angle')}
-                  large
-                />
-              </RibbonSection>
+        {/* ========================================================= */}
+        {/* TAB 4: MEASUREMENTS                                       */}
+        {/* ========================================================= */}
+        {activeTab === 'measure' && (
+          <>
+            <ToolbarGroup label="Clinical Calibrated Tools">
+              <ToolItem
+                icon={Ruler}
+                label="Calibrated Ruler (mm)"
+                hotkey="M"
+                active={activeTool === 'ruler'}
+                onClick={() => onToolSelect('ruler')}
+                highlight
+              />
+              <ToolItem
+                icon={Activity}
+                label="Cobb Angle"
+                hotkey="N"
+                active={activeTool === 'angle'}
+                onClick={() => onToolSelect('angle')}
+              />
+            </ToolbarGroup>
 
-              <RibbonSection label="Active Measurements">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 120 }}>
-                  <div style={{ fontSize: 11, color: '#556b5a' }}>
-                    Active: <strong style={{ color: '#0f3e17' }}>{measurementCount}</strong> measurements
-                  </div>
-                  <button
-                    onClick={onClearMeasurements}
-                    disabled={measurementCount === 0}
-                    style={{
-                      padding: '3px 8px',
-                      fontSize: 10.5,
-                      borderRadius: 4,
-                      backgroundColor: measurementCount > 0 ? '#fee2e2' : '#f7f5ef',
-                      border: '1px solid #ded8cb',
-                      color: measurementCount > 0 ? '#dc2626' : '#94a3b8',
-                      cursor: measurementCount > 0 ? 'pointer' : 'default',
-                    }}
-                  >
-                    Clear All Overlays
-                  </button>
-                </div>
-              </RibbonSection>
-            </>
-          )}
+            <ToolbarGroup label="Active Overlays">
+              <button
+                onClick={onClearMeasurements}
+                disabled={measurementCount === 0}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '3px 8px',
+                  fontSize: 10.5,
+                  borderRadius: 4,
+                  backgroundColor: measurementCount > 0 ? '#fee2e2' : '#f7f5ef',
+                  border: `1px solid ${measurementCount > 0 ? '#fca5a5' : '#ded8cb'}`,
+                  color: measurementCount > 0 ? '#991b1b' : '#94a3b8',
+                  cursor: measurementCount > 0 ? 'pointer' : 'default',
+                  height: 28,
+                  fontWeight: 600,
+                }}
+              >
+                <span>Clear All ({measurementCount})</span>
+              </button>
+            </ToolbarGroup>
+          </>
+        )}
 
-          {/* ========================================================= */}
-          {/* TAB 5: 3D EXPORT & PRINT                                  */}
-          {/* ========================================================= */}
-          {activeTab === 'export' && (
-            <>
-              <RibbonSection label="CAD Mesh Generation">
-                <RibbonButton
-                  icon={Download}
-                  label={layerCount > 1 ? `Generate All STLs (${layerCount})` : 'Generate Active STL'}
-                  sub={layerCount > 1 ? 'Multi-Body Batch' : (activeLayerName || 'Active Layer')}
-                  onClick={layerCount > 1 ? onGenerateAllSTLs : onGenerateSTL}
-                  disabled={isGeneratingSTL}
-                  large
-                  highlight
-                />
-              </RibbonSection>
+        {/* ========================================================= */}
+        {/* TAB 5: 3D EXPORT & PRINT                                  */}
+        {/* ========================================================= */}
+        {activeTab === 'export' && (
+          <>
+            <ToolbarGroup label="CAD Generation">
+              <ToolItem
+                icon={Download}
+                label={layerCount > 1 ? `Generate All STLs (${layerCount})` : 'Generate Active STL'}
+                onClick={layerCount > 1 ? onGenerateAllSTLs : onGenerateSTL}
+                disabled={isGeneratingSTL}
+                highlight
+              />
+            </ToolbarGroup>
 
-              <RibbonSection label="Export Formats & 3D Print">
-                <RibbonButton
-                  icon={FileDown}
-                  label="Binary STL"
-                  sub="Medical Standard"
-                  onClick={onGenerateSTL}
-                />
-                <RibbonButton
-                  icon={Printer}
-                  label="3MF Print Package"
-                  sub="Multi-Color CAD"
-                  onClick={onGenerateSTL}
-                />
-                <RibbonButton
-                  icon={Binary}
-                  label="DICOM RT-Struct"
-                  sub="PACS Export"
-                  onClick={onGenerateSTL}
-                />
-              </RibbonSection>
-            </>
-          )}
+            <ToolbarGroup label="Export Formats">
+              <ToolItem
+                icon={FileDown}
+                label="Binary STL"
+                onClick={onGenerateSTL}
+              />
+              <ToolItem
+                icon={Printer}
+                label="3MF Print Package"
+                onClick={onGenerateSTL}
+              />
+              <ToolItem
+                icon={Binary}
+                label="DICOM RT-Struct"
+                onClick={onGenerateSTL}
+              />
+            </ToolbarGroup>
+          </>
+        )}
 
-          {/* ========================================================= */}
-          {/* TAB 6: LICENSE & SYSTEM                                   */}
-          {/* ========================================================= */}
-          {activeTab === 'license' && (
-            <>
-              <RibbonSection label="Licensing & Master Admin">
-                <RibbonButton
-                  icon={ShieldCheck}
-                  label="Master Admin Portal"
-                  sub="amit.addi2010@gmail.com"
-                  onClick={() => router.push('/admin/licenses')}
-                  highlight
-                />
-              </RibbonSection>
+        {/* ========================================================= */}
+        {/* TAB 6: SYSTEM & LICENSE                                   */}
+        {/* ========================================================= */}
+        {activeTab === 'license' && (
+          <>
+            <ToolbarGroup label="Administration">
+              <ToolItem
+                icon={ShieldCheck}
+                label="Master Admin Portal"
+                onClick={() => router.push('/admin/licenses')}
+                highlight
+              />
+            </ToolbarGroup>
 
-              <RibbonSection label="Help & Documentation">
-                <RibbonButton
-                  icon={HelpCircle}
-                  label="Shortcuts Guide"
-                  sub="Complete Keybindings"
-                  onClick={onOpenShortcuts}
-                />
-              </RibbonSection>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+            <ToolbarGroup label="Documentation">
+              <ToolItem
+                icon={HelpCircle}
+                label="Shortcuts Guide (?)"
+                onClick={onOpenShortcuts}
+              />
+            </ToolbarGroup>
+          </>
+        )}
+      </div>
+    </header>
   );
 }
 
-/* ── Ribbon Sub-components: Section & Button ── */
+/* ── Clean Toolbar Group & Item Sub-components ── */
 
-function RibbonSection({ label, children }: { label: string; children: React.ReactNode }) {
+function ToolbarGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div
       style={{
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
+        gap: 3,
         padding: '0 8px',
         borderRight: '1px solid #e8e4db',
+        height: '100%',
         position: 'relative',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          flex: 1,
-          justifyContent: 'center',
-        }}
-      >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
         {children}
       </div>
-      <div
+      <span
         style={{
-          fontSize: 9.5,
-          fontWeight: 600,
-          color: '#6b7c6e',
-          textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          marginTop: 2,
-          paddingTop: 2,
-          borderTop: '1px solid #ebe7df',
-          width: '100%',
+          position: 'absolute',
+          bottom: 1,
+          left: 0,
+          right: 0,
           textAlign: 'center',
+          fontSize: 8.5,
+          color: '#8c9c8f',
+          textTransform: 'uppercase',
+          letterSpacing: '0.04em',
+          fontWeight: 600,
+          pointerEvents: 'none',
         }}
       >
         {label}
-      </div>
+      </span>
     </div>
   );
 }
 
-interface RibbonButtonProps {
+interface ToolItemProps {
   icon?: any;
   label: string;
-  sub?: string;
   hotkey?: string;
   active?: boolean;
   disabled?: boolean;
   highlight?: boolean;
-  large?: boolean;
-  small?: boolean;
   onClick?: () => void;
 }
 
-function RibbonButton({
+function ToolItem({
   icon: Icon,
   label,
-  sub,
   hotkey,
   active,
   disabled,
   highlight,
-  large,
-  small,
   onClick,
-}: RibbonButtonProps) {
-  if (small) {
-    return (
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        style={{
-          padding: '3px 8px',
-          fontSize: 10.5,
-          fontWeight: active ? 700 : 500,
-          borderRadius: 4,
-          backgroundColor: active ? '#e1f4df' : '#fff',
-          border: `1px solid ${active ? '#10b981' : '#ded8cb'}`,
-          color: active ? '#0f3e17' : '#334155',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          textAlign: 'center',
-          whiteSpace: 'nowrap',
-          transition: 'all 0.1s ease',
-        }}
-      >
-        {label}
-      </button>
-    );
-  }
-
-  if (large) {
-    return (
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '5px 12px',
-          minWidth: 84,
-          borderRadius: 6,
-          backgroundColor: active
-            ? '#e1f4df'
-            : highlight
-              ? '#ecfdf5'
-              : '#ffffff',
-          border: `1px solid ${
-            active
-              ? '#10b981'
-              : highlight
-                ? '#10b981'
-                : '#ded8cb'
-          }`,
-          color: active ? '#0f3e17' : highlight ? '#065f46' : '#1e293b',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          position: 'relative',
-          gap: 2,
-          boxShadow: highlight ? '0 1px 3px rgba(16,185,129,0.15)' : '0 1px 2px rgba(0,0,0,0.03)',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        {Icon && <Icon size={18} color={active ? '#0f3e17' : highlight ? '#10b981' : '#556b5a'} />}
-        <span style={{ fontSize: 11, fontWeight: 700, textAlign: 'center', lineHeight: 1.2 }}>{label}</span>
-        {sub && <span style={{ fontSize: 9, color: '#6b7c6e', textAlign: 'center' }}>{sub}</span>}
-        {hotkey && (
-          <span
-            style={{
-              position: 'absolute',
-              top: 2,
-              right: 4,
-              fontSize: 8.5,
-              fontFamily: 'var(--font-mono, monospace)',
-              color: '#6b7c6e',
-              fontWeight: 700,
-            }}
-          >
-            {hotkey}
-          </span>
-        )}
-      </button>
-    );
-  }
-
+}: ToolItemProps) {
   return (
     <button
       onClick={onClick}
@@ -870,47 +718,50 @@ function RibbonButton({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 6,
-        padding: '5px 9px',
-        borderRadius: 5,
+        gap: 5,
+        padding: '0 8px',
+        height: 28,
+        borderRadius: 4,
         backgroundColor: active
           ? '#e1f4df'
           : highlight
             ? '#ecfdf5'
-            : '#ffffff',
+            : '#fff',
         border: `1px solid ${
           active
             ? '#10b981'
             : highlight
               ? '#10b981'
-              : '#ded8cb'
+              : '#d8d2c4'
         }`,
-        color: active ? '#0f3e17' : highlight ? '#065f46' : '#1e293b',
+        color: active ? '#0f3e17' : highlight ? '#065f46' : '#222222',
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontSize: 11,
         fontWeight: active ? 700 : 500,
-        position: 'relative',
-        transition: 'all 0.12s ease',
-        textAlign: 'left',
-        minWidth: 92,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+        transition: 'all 0.1s ease',
+        whiteSpace: 'nowrap',
+        boxShadow: highlight ? '0 1px 3px rgba(16,185,129,0.15)' : 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (!active && !highlight) e.currentTarget.style.backgroundColor = '#f7f5ef';
+      }}
+      onMouseLeave={(e) => {
+        if (!active && !highlight) e.currentTarget.style.backgroundColor = '#fff';
       }}
     >
-      {Icon && <Icon size={14} color={active ? '#0f3e17' : highlight ? '#10b981' : '#556b5a'} />}
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <span style={{ fontSize: 11, fontWeight: 600 }}>{label}</span>
-        {sub && <span style={{ fontSize: 8.5, color: '#6b7c6e' }}>{sub}</span>}
-      </div>
+      {Icon && <Icon size={13} color={active ? '#0f3e17' : highlight ? '#10b981' : '#556b5a'} />}
+      <span>{label}</span>
       {hotkey && (
         <span
           style={{
             fontSize: 8.5,
             fontFamily: 'var(--font-mono, monospace)',
-            color: '#6b7c6e',
+            color: active ? '#0f3e17' : '#6b7c6e',
             fontWeight: 700,
-            backgroundColor: '#f1efe9',
+            backgroundColor: active ? 'rgba(16,185,129,0.2)' : '#f0ece2',
             padding: '1px 3px',
-            borderRadius: 3,
+            borderRadius: 2,
+            marginLeft: 2,
           }}
         >
           {hotkey}
