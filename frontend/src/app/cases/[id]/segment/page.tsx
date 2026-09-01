@@ -2048,36 +2048,34 @@ export default function SegmentPage() {
         </div>
       </header>
 
-      {/* ── Clinical Safety Simulation Fallback Warning Banner ── */}
+      {/* ── Clinical Safety Simulation Fallback Warning Banner (Compact) ── */}
       {isSimulatedMode && (
         <div
           style={{
-            backgroundColor: '#7f1d1d',
-            color: '#fef2f2',
-            padding: '7px 20px',
+            backgroundColor: '#1a1113',
+            color: '#fca5a5',
+            padding: '3px 16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            fontSize: 12,
-            borderBottom: '1px solid #dc2626',
-            boxShadow: '0 2px 8px rgba(220,38,38,0.25)',
+            fontSize: 11,
+            borderBottom: '1px solid #451a1a',
             zIndex: 15,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <AlertTriangle size={15} color="#fca5a5" />
-            <span style={{ fontWeight: 700, letterSpacing: '0.03em' }}>
-              CLINICAL WARNING: SIMULATION / HEURISTIC FALLBACK MODE ACTIVE
-            </span>
-            <span style={{ color: '#fecaca', fontSize: 11.5 }}>
-              nnInteractive / TotalSegmentator neural inference server is offline. Segmentation & auto-seg are executing via heuristic intensity approximations. Always verify anatomical boundaries.
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertTriangle size={12} color="#f87171" />
+            <span style={{ fontWeight: 600 }}>Heuristic / Intensity Segmentation Mode Active</span>
+            <span style={{ color: '#f87171', opacity: 0.75, fontSize: 10.5 }}>
+              (nnInteractive neural backend offline — verifying intensity gradients)
             </span>
           </div>
-          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.18)', fontWeight: 600 }}>
-            SIMULATED FALLBACK
+          <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 3, backgroundColor: 'rgba(239,68,68,0.2)', color: '#fca5a5', fontWeight: 600, letterSpacing: '0.04em' }}>
+            HEURISTIC INTENSITY
           </span>
         </div>
       )}
+
 
       {/* ── Auto-Segmentation Real-time Floating HUD Banner ── */}
 
