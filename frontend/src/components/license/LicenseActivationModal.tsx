@@ -10,11 +10,9 @@ import {
   Copy,
   Check,
   Sparkles,
-  Layers,
-  FileCode,
+  X,
   Lock,
   ExternalLink,
-  X,
 } from 'lucide-react';
 
 export function LicenseActivationModal() {
@@ -62,7 +60,7 @@ export function LicenseActivationModal() {
       setTimeout(() => {
         setSuccessMsg('');
         closeModal();
-      }, 1800);
+      }, 1600);
     }
   };
 
@@ -74,7 +72,7 @@ export function LicenseActivationModal() {
       setTimeout(() => {
         setSuccessMsg('');
         closeModal();
-      }, 1800);
+      }, 1600);
     }
   };
 
@@ -82,86 +80,250 @@ export function LicenseActivationModal() {
   const isTrial = status?.is_valid && status?.is_trial;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-zinc-950 border border-zinc-800/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 99999,
+        backgroundColor: 'rgba(12, 30, 16, 0.72)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) closeModal();
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 620,
+          backgroundColor: '#fffefc',
+          borderRadius: 20,
+          boxShadow: '0 24px 64px rgba(12, 47, 16, 0.35), 0 4px 16px rgba(0,0,0,0.08)',
+          border: '1px solid rgba(15, 62, 23, 0.16)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '90vh',
+          animation: 'fadeInUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      >
         {/* Modal Header */}
-        <div className="px-6 py-5 border-b border-zinc-800/60 bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-950 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-              <Key className="w-5 h-5" />
+        <div
+          style={{
+            padding: '20px 24px',
+            borderBottom: '1px solid #efeeeb',
+            backgroundColor: '#f7f6f3',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: 'rgba(15, 62, 23, 0.08)',
+                border: '1px solid rgba(15, 62, 23, 0.16)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-forest-ink, #0f3e17)',
+              }}
+            >
+              <Key size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-                Ossilith Software Licensing
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: 'var(--color-forest-ink, #0f3e17)',
+                    fontFamily: 'var(--font-sans, system-ui)',
+                  }}
+                >
+                  Ossilith Software Licensing
+                </h3>
                 {isPro && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium">
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 99,
+                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                      color: '#059669',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                    }}
+                  >
                     PRO CLINICAL
                   </span>
                 )}
                 {isTrial && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium">
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 99,
+                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                      color: '#d97706',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                    }}
+                  >
                     TRIAL ({status?.days_remaining}d left)
                   </span>
                 )}
-              </h2>
-              <p className="text-xs text-zinc-400">
+              </div>
+              <p style={{ margin: 0, fontSize: 12, color: '#6b7c6e', marginTop: 2 }}>
                 Machine-bound cryptographic software protection & activation
               </p>
             </div>
           </div>
+
           <button
             onClick={closeModal}
-            className="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800/50 transition-colors"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#6b7c6e',
+              padding: 6,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <X className="w-5 h-5" />
+            <X size={20} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
-          {/* Status Alert Banner */}
+        <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Alerts */}
           {error && (
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-3 text-rose-300 text-xs">
-              <ShieldAlert className="w-5 h-5 flex-shrink-0 text-rose-400" />
+            <div
+              style={{
+                padding: '12px 16px',
+                borderRadius: 12,
+                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                color: '#b91c1c',
+                fontSize: 12.5,
+              }}
+            >
+              <ShieldAlert size={18} style={{ flexShrink: 0 }} />
               <span>{error}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-300 text-xs">
-              <ShieldCheck className="w-5 h-5 flex-shrink-0 text-emerald-400" />
+            <div
+              style={{
+                padding: '12px 16px',
+                borderRadius: 12,
+                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                color: '#047857',
+                fontSize: 12.5,
+              }}
+            >
+              <ShieldCheck size={18} style={{ flexShrink: 0 }} />
               <span>{successMsg}</span>
             </div>
           )}
 
-          {/* Machine Hardware ID Section */}
-          <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-                <Cpu className="w-4 h-4 text-cyan-400" />
+          {/* Machine HWID Section */}
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: 14,
+              backgroundColor: '#f7f6f3',
+              border: '1px solid #efeeeb',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--color-forest-ink, #0f3e17)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Cpu size={15} color="#0f3e17" />
                 Target Machine Hardware ID (HWID)
               </label>
-              <span className="text-[11px] text-zinc-500">Provide this to your vendor/admin</span>
+              <span style={{ fontSize: 11, color: '#6b7c6e' }}>Provide this to your vendor/admin</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
                 type="text"
                 readOnly
                 value={hwid || status?.hwid || 'Detecting hardware...'}
-                className="w-full px-3.5 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-cyan-300 tracking-wider focus:outline-none"
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  backgroundColor: '#fff',
+                  border: '1px solid #d7e4d8',
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontFamily: 'var(--font-mono, monospace)',
+                  color: 'var(--color-forest-ink, #0f3e17)',
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  outline: 'none',
+                }}
               />
               <button
                 onClick={handleCopyHwid}
-                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0 border border-zinc-700"
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: '#fff',
+                  border: '1px solid #d7e4d8',
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  color: 'var(--color-forest-ink, #0f3e17)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  flexShrink: 0,
+                  transition: 'all 0.15s ease',
+                }}
               >
                 {copiedHwid ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Copied!</span>
+                    <Check size={14} color="#059669" />
+                    <span style={{ color: '#059669' }}>Copied!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5" />
+                    <Copy size={14} />
                     <span>Copy HWID</span>
                   </>
                 )}
@@ -169,10 +331,19 @@ export function LicenseActivationModal() {
             </div>
           </div>
 
-          {/* License Activation Form */}
-          <div className="space-y-3">
-            <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-              <Key className="w-4 h-4 text-emerald-400" />
+          {/* License Key Input */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--color-forest-ink, #0f3e17)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Key size={15} color="#0f3e17" />
               Enter Digitally-Signed License Key
             </label>
             <textarea
@@ -180,15 +351,41 @@ export function LicenseActivationModal() {
               placeholder="Paste your signed license string (e.g. eyJjdXN0b21lciI6...)"
               value={licenseKeyInput}
               onChange={(e) => setLicenseKeyInput(e.target.value)}
-              className="w-full p-3 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-all resize-none"
+              style={{
+                width: '100%',
+                padding: '12px',
+                backgroundColor: '#fff',
+                border: '1px solid #d7e4d8',
+                borderRadius: 12,
+                fontSize: 11.5,
+                fontFamily: 'var(--font-mono, monospace)',
+                color: '#222',
+                outline: 'none',
+                resize: 'none',
+                lineHeight: 1.4,
+              }}
             />
-            <div className="flex items-center justify-between gap-3 pt-1">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, gap: 10 }}>
               <button
                 onClick={handleActivate}
                 disabled={isActivating || !licenseKeyInput.trim()}
-                className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-cyan-950/40 transition-all flex items-center gap-2"
+                style={{
+                  padding: '12px 22px',
+                  backgroundColor: 'var(--color-forest-ink, #0f3e17)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: isActivating || !licenseKeyInput.trim() ? 'not-allowed' : 'pointer',
+                  opacity: isActivating || !licenseKeyInput.trim() ? 0.5 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 12px rgba(15, 62, 23, 0.2)',
+                }}
               >
-                <ShieldCheck className="w-4 h-4" />
+                <ShieldCheck size={16} />
                 {isActivating ? 'Verifying Ed25519 Signature...' : 'Activate License Key'}
               </button>
 
@@ -196,9 +393,21 @@ export function LicenseActivationModal() {
                 <button
                   onClick={handleStartTrial}
                   disabled={isActivating}
-                  className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-medium rounded-xl border border-zinc-700/80 transition-colors flex items-center gap-1.5"
+                  style={{
+                    padding: '12px 18px',
+                    backgroundColor: '#fff',
+                    color: 'var(--color-forest-ink, #0f3e17)',
+                    border: '1px solid #d7e4d8',
+                    borderRadius: 12,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <Sparkles size={14} color="#d97706" />
                   Start 14-Day Free Evaluation
                 </button>
               )}
@@ -206,37 +415,78 @@ export function LicenseActivationModal() {
           </div>
 
           {/* Included Features Matrix */}
-          <div className="pt-2">
-            <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+          <div style={{ paddingTop: 4 }}>
+            <h4
+              style={{
+                margin: 0,
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: '#6b7c6e',
+                marginBottom: 10,
+              }}
+            >
               Included Clinical Modules & Capabilities
             </h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2.5 rounded-lg bg-zinc-900/40 border border-zinc-800/60 flex items-center gap-2 text-zinc-300">
-                <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>TotalSegmentator v2.0 & MONAI 1.6</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-zinc-900/40 border border-zinc-800/60 flex items-center gap-2 text-zinc-300">
-                <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>Zero Joint-Breach Watershed Engine</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-zinc-900/40 border border-zinc-800/60 flex items-center gap-2 text-zinc-300">
-                <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>Multi-Bone Shell Splitting & CAD</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-zinc-900/40 border border-zinc-800/60 flex items-center gap-2 text-zinc-300">
-                <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>Medical STL / 3MF 3D Print Export</span>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[
+                'TotalSegmentator v2.0 & MONAI 1.6',
+                'Zero Joint-Breach Watershed Engine',
+                'Multi-Bone Shell Splitting & CAD',
+                'Medical STL / 3MF 3D Print Export',
+              ].map((feat, i) => (
+                <div
+                  key={i}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    backgroundColor: '#f7f6f3',
+                    border: '1px solid #efeeeb',
+                    fontSize: 11.5,
+                    color: '#222',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <Check size={14} color="#059669" style={{ flexShrink: 0 }} />
+                  <span>{feat}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-zinc-800/60 bg-zinc-950/80 flex items-center justify-between text-xs text-zinc-500">
-          <span>Ossilith v0.1.0 • Offline Cryptographic Protection</span>
+        <div
+          style={{
+            padding: '16px 24px',
+            borderTop: '1px solid #efeeeb',
+            backgroundColor: '#f7f6f3',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 12,
+            color: '#6b7c6e',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Lock size={13} />
+            Ossilith v0.1.0 • Offline Cryptographic Protection
+          </span>
           <button
             onClick={closeModal}
-            className="px-4 py-1.5 rounded-lg text-zinc-300 hover:bg-zinc-800 transition-colors"
+            style={{
+              padding: '6px 14px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 500,
+              color: '#222',
+              borderRadius: 6,
+            }}
           >
             Close
           </button>
