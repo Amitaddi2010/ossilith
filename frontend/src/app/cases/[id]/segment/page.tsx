@@ -937,6 +937,7 @@ export default function SegmentPage() {
   const [layers, setLayers] = useState<Layer[]>([]);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<VolumeMetadata | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
 
   // Independent slice indices for each axis
   const [axialSlice, setAxialSlice] = useState<number>(0);
@@ -1907,6 +1908,8 @@ export default function SegmentPage() {
         }}
         measurementCount={rulers.length + angles.length}
         isSimulatedMode={isSimulatedMode}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
       />
 
       {/* ── Auto-Segmentation Real-time Floating HUD Banner (Only when active) ── */}
@@ -1953,60 +1956,107 @@ export default function SegmentPage() {
       {/* ── Main View Area ───────────────────────────────── */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Left CAD Inspector & Layers Sidebar */}
-        <aside
-          className="animate-slide-in-left"
-          style={{
-            width: 250,
-            borderRight: '1px solid #ded8cb',
-            backgroundColor: '#fcfbf8',
-            padding: 10,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            overflowY: 'auto',
-            userSelect: 'none',
-          }}
-        >
-          {/* Card 1: Active Tool Inspector & Parameters */}
-          <div
+        {isSidebarOpen ? (
+          <aside
+            className="animate-slide-in-left"
             style={{
-              backgroundColor: '#fff',
-              padding: 9,
-              borderRadius: 6,
-              border: '1px solid #ded8cb',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+              width: 250,
+              borderRight: '1px solid #ded8cb',
+              backgroundColor: '#fcfbf8',
+              padding: 10,
               display: 'flex',
               flexDirection: 'column',
-              gap: 6,
+              gap: 8,
+              overflowY: 'auto',
+              userSelect: 'none',
+              transition: 'all 0.15s ease',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span
-                style={{
-                  fontSize: 9.5,
-                  fontWeight: 700,
-                  color: '#6b7c6e',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                Active Tool
-              </span>
+            {/* Sidebar Header with Collapse Button */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px 2px' }}>
               <span
                 style={{
                   fontSize: 10,
-                  padding: '2px 7px',
-                  borderRadius: 4,
-                  backgroundColor: '#e1f4df',
-                  color: '#0f3e17',
                   fontWeight: 700,
-                  border: '1px solid #b1dbb8',
+                  color: '#0f3e17',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  fontFamily: 'var(--font-sans)',
                 }}
               >
-                {TOOLS.find((t) => t.id === activeTool)?.label || 'Tool'}
+                CAD Inspector & Layers
               </span>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                title="Collapse Sidebar"
+                style={{
+                  background: '#fff',
+                  border: '1px solid #ded8cb',
+                  borderRadius: 4,
+                  color: '#6b7c6e',
+                  cursor: 'pointer',
+                  padding: '2px 5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  fontSize: 9.5,
+                  fontWeight: 600,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e1f4df';
+                  e.currentTarget.style.color = '#0f3e17';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#fff';
+                  e.currentTarget.style.color = '#6b7c6e';
+                }}
+              >
+                <span>Hide</span>
+                <ChevronLeft size={11} />
+              </button>
             </div>
+
+            {/* Card 1: Active Tool Inspector & Parameters */}
+            <div
+              style={{
+                backgroundColor: '#fff',
+                padding: 9,
+                borderRadius: 6,
+                border: '1px solid #ded8cb',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span
+                  style={{
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    color: '#6b7c6e',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                >
+                  Active Tool
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    padding: '2px 7px',
+                    borderRadius: 4,
+                    backgroundColor: '#e1f4df',
+                    color: '#0f3e17',
+                    fontWeight: 700,
+                    border: '1px solid #b1dbb8',
+                  }}
+                >
+                  {TOOLS.find((t) => t.id === activeTool)?.label || 'Tool'}
+                </span>
+              </div>
+
 
             {/* Region Grow Parameters */}
             {activeTool === 'region_grow' && (
@@ -2602,6 +2652,63 @@ export default function SegmentPage() {
             </button>
           </div>
         </aside>
+        ) : (
+          <aside
+            style={{
+              width: 30,
+              borderRight: '1px solid #ded8cb',
+              backgroundColor: '#fcfbf8',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '8px 0',
+              cursor: 'pointer',
+              userSelect: 'none',
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+            onClick={() => setIsSidebarOpen(true)}
+            title="Expand Left CAD Inspector & Layers"
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsSidebarOpen(true);
+              }}
+              title="Expand Left CAD Inspector"
+              style={{
+                backgroundColor: '#e1f4df',
+                border: '1px solid #b1dbb8',
+                borderRadius: 4,
+                color: '#0f3e17',
+                cursor: 'pointer',
+                padding: '4px 4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <ChevronRight size={13} />
+            </button>
+            <div
+              style={{
+                writingMode: 'vertical-rl',
+                transform: 'rotate(180deg)',
+                fontSize: 9.5,
+                fontWeight: 700,
+                color: '#6b7c6e',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                fontFamily: 'var(--font-sans)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              CAD Inspector & Layers ({layers.length})
+            </div>
+          </aside>
+        )}
+
 
 
 

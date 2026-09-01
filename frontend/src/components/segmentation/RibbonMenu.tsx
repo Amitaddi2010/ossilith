@@ -84,6 +84,8 @@ interface RibbonMenuProps {
   isSimulatedMode: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export default function RibbonMenu({
@@ -116,6 +118,8 @@ export default function RibbonMenu({
   isSimulatedMode,
   onUndo,
   onRedo,
+  isSidebarOpen = true,
+  onToggleSidebar,
 }: RibbonMenuProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<RibbonTab>('interactive');
@@ -154,7 +158,7 @@ export default function RibbonMenu({
           borderBottom: '1px solid #e8e4db',
         }}
       >
-        {/* Left: Return, Case Title & Stage */}
+        {/* Left: Return, Sidebar Toggle, Case Title & Stage */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={() => router.push('/cases')}
@@ -180,7 +184,32 @@ export default function RibbonMenu({
             <span>Cases</span>
           </button>
 
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              title={isSidebarOpen ? "Hide CAD Inspector Sidebar" : "Show CAD Inspector Sidebar"}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: isSidebarOpen ? '#e1f4df' : '#fff',
+                border: `1px solid ${isSidebarOpen ? '#10b981' : '#d8d2c4'}`,
+                borderRadius: 4,
+                padding: '2px 7px',
+                color: '#0f3e17',
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+                height: 24,
+              }}
+            >
+              <Sliders size={12} color={isSidebarOpen ? '#0f3e17' : '#6b7c6e'} />
+              <span>{isSidebarOpen ? 'Hide Panel' : 'Show Panel'}</span>
+            </button>
+          )}
+
           <div style={{ height: 14, width: 1, backgroundColor: '#ded8cb' }} />
+
 
           <span style={{ fontSize: 12, fontWeight: 700, color: '#0f3e17', letterSpacing: '-0.01em' }}>
             {caseTitle || `Case #${caseId.slice(0, 8)}`}
