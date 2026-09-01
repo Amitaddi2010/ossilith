@@ -133,12 +133,13 @@ export default function RibbonMenu({
     <header
       style={{
         backgroundColor: '#fff',
-        borderBottom: '1px solid #e2ded4',
+        borderBottom: '1px solid #ded8cb',
         display: 'flex',
         flexDirection: 'column',
         userSelect: 'none',
         zIndex: 30,
         fontFamily: 'var(--font-sans, system-ui, -apple-system, sans-serif)',
+        flexShrink: 0,
       }}
     >
       {/* ── Level 1: App Header Bar (36px) ── */}
@@ -164,7 +165,7 @@ export default function RibbonMenu({
               gap: 4,
               backgroundColor: '#fff',
               border: '1px solid #d8d2c4',
-              borderRadius: 5,
+              borderRadius: 4,
               padding: '2px 8px',
               color: '#0f3e17',
               fontSize: 11,
@@ -189,7 +190,7 @@ export default function RibbonMenu({
             style={{
               fontSize: 9,
               padding: '1px 6px',
-              borderRadius: 10,
+              borderRadius: 8,
               backgroundColor: '#e1f4df',
               color: '#0f3e17',
               fontWeight: 700,
@@ -200,7 +201,7 @@ export default function RibbonMenu({
           </span>
         </div>
 
-        {/* Center: Clean Tab Switcher */}
+        {/* Center: Tabs Switcher */}
         <nav style={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
           {TABS.map((tab) => {
             const Icon = tab.icon;
@@ -212,8 +213,8 @@ export default function RibbonMenu({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 4,
-                  padding: '0 10px',
+                  gap: 5,
+                  padding: '0 12px',
                   height: '100%',
                   fontSize: 11.5,
                   fontWeight: isActive ? 700 : 500,
@@ -222,8 +223,7 @@ export default function RibbonMenu({
                   border: 'none',
                   borderBottom: isActive ? '2.5px solid #10b981' : '2.5px solid transparent',
                   cursor: 'pointer',
-                  transition: 'all 0.12s ease',
-                  position: 'relative',
+                  transition: 'all 0.1s ease',
                 }}
               >
                 <Icon size={13} color={isActive ? '#10b981' : '#6b7c6e'} />
@@ -232,7 +232,7 @@ export default function RibbonMenu({
                   <span
                     style={{
                       fontSize: 8.5,
-                      padding: '0 4px',
+                      padding: '0 5px',
                       borderRadius: 4,
                       backgroundColor: isActive ? '#10b981' : '#e1f4df',
                       color: isActive ? '#fff' : '#0f3e17',
@@ -283,7 +283,7 @@ export default function RibbonMenu({
               gap: 3,
               backgroundColor: '#fff',
               border: '1px solid #d8d2c4',
-              borderRadius: 5,
+              borderRadius: 4,
               padding: '2px 6px',
               color: '#0f3e17',
               fontSize: 10.5,
@@ -297,16 +297,16 @@ export default function RibbonMenu({
         </div>
       </div>
 
-      {/* ── Level 2: Compact High-Precision Toolbar Deck (46px) ── */}
+      {/* ── Level 2: Precision Toolbar Deck (54px - Generous Non-Overlapping Layout) ── */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          padding: '4px 10px',
+          alignItems: 'stretch',
+          padding: '4px 8px',
           backgroundColor: '#fff',
-          height: 48,
+          height: 54,
           overflowX: 'auto',
-          gap: 6,
+          gap: 2,
         }}
       >
         {/* ========================================================= */}
@@ -314,7 +314,7 @@ export default function RibbonMenu({
         {/* ========================================================= */}
         {activeTab === 'interactive' && (
           <>
-            <ToolbarGroup label="Seed & Grow">
+            <ToolbarGroup label="Primary Seed & Grow">
               <ToolItem
                 icon={Zap}
                 label="3D Region Grow"
@@ -339,18 +339,18 @@ export default function RibbonMenu({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 4,
-                  padding: '3px 8px',
+                  padding: '0 8px',
                   borderRadius: 4,
                   backgroundColor: includeMode ? '#e1f4df' : '#fff',
                   border: `1px solid ${includeMode ? '#10b981' : '#d8d2c4'}`,
                   color: includeMode ? '#0f3e17' : '#556b5a',
-                  fontSize: 10.5,
+                  fontSize: 11,
                   fontWeight: includeMode ? 700 : 500,
                   cursor: 'pointer',
                   height: 28,
                 }}
               >
-                <span style={{ fontSize: 12, fontWeight: 900, color: '#10b981' }}>+</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#10b981' }}>+</span>
                 <span>Target</span>
               </button>
 
@@ -360,23 +360,23 @@ export default function RibbonMenu({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 4,
-                  padding: '3px 8px',
+                  padding: '0 8px',
                   borderRadius: 4,
                   backgroundColor: !includeMode ? '#fee2e2' : '#fff',
                   border: `1px solid ${!includeMode ? '#ef4444' : '#d8d2c4'}`,
                   color: !includeMode ? '#991b1b' : '#556b5a',
-                  fontSize: 10.5,
+                  fontSize: 11,
                   fontWeight: !includeMode ? 700 : 500,
                   cursor: 'pointer',
                   height: 28,
                 }}
               >
-                <span style={{ fontSize: 12, fontWeight: 900, color: '#ef4444' }}>−</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: '#ef4444' }}>−</span>
                 <span>Background</span>
               </button>
             </ToolbarGroup>
 
-            <ToolbarGroup label="Manual Brushes">
+            <ToolbarGroup label="Manual Drawing Tools">
               <ToolItem
                 icon={Pen}
                 label="Brush"
@@ -407,7 +407,7 @@ export default function RibbonMenu({
               />
             </ToolbarGroup>
 
-            <ToolbarGroup label="Topology & Cleanup">
+            <ToolbarGroup label="Topology & Surgical Filters">
               <ToolItem
                 icon={Layers}
                 label="Island Filter"
@@ -467,7 +467,7 @@ export default function RibbonMenu({
               />
             </ToolbarGroup>
 
-            <ToolbarGroup label="Navigation">
+            <ToolbarGroup label="Navigation & Guides">
               <ToolItem
                 icon={Hand}
                 label="Pan / Zoom"
@@ -522,10 +522,10 @@ export default function RibbonMenu({
               />
             </ToolbarGroup>
 
-            <ToolbarGroup label="Anatomical Targets">
+            <ToolbarGroup label="Target Presets">
               <ToolItem
                 icon={Brain}
-                label="Unified Skeleton"
+                label="Full Skeleton"
                 onClick={onOpenAutoSegModal}
               />
               <ToolItem
@@ -565,7 +565,7 @@ export default function RibbonMenu({
               />
             </ToolbarGroup>
 
-            <ToolbarGroup label="Active Overlays">
+            <ToolbarGroup label="Active Annotations">
               <button
                 onClick={onClearMeasurements}
                 disabled={measurementCount === 0}
@@ -573,8 +573,8 @@ export default function RibbonMenu({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 5,
-                  padding: '3px 8px',
-                  fontSize: 10.5,
+                  padding: '0 8px',
+                  fontSize: 11,
                   borderRadius: 4,
                   backgroundColor: measurementCount > 0 ? '#fee2e2' : '#f7f5ef',
                   border: `1px solid ${measurementCount > 0 ? '#fca5a5' : '#ded8cb'}`,
@@ -653,37 +653,34 @@ export default function RibbonMenu({
   );
 }
 
-/* ── Clean Toolbar Group & Item Sub-components ── */
+/* ── Clean Toolbar Group (No absolute overlap!) ── */
 
 function ToolbarGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div
       style={{
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        gap: 3,
+        justifyContent: 'space-between',
         padding: '0 8px',
         borderRight: '1px solid #e8e4db',
         height: '100%',
-        position: 'relative',
+        flexShrink: 0,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 3, height: 28 }}>
         {children}
       </div>
       <span
         style={{
-          position: 'absolute',
-          bottom: 1,
-          left: 0,
-          right: 0,
-          textAlign: 'center',
-          fontSize: 8.5,
-          color: '#8c9c8f',
+          fontSize: 9,
+          color: '#6b7c6e',
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
-          fontWeight: 600,
-          pointerEvents: 'none',
+          fontWeight: 700,
+          lineHeight: 1,
+          paddingBottom: 2,
         }}
       >
         {label}
@@ -740,7 +737,7 @@ function ToolItem({
         fontWeight: active ? 700 : 500,
         transition: 'all 0.1s ease',
         whiteSpace: 'nowrap',
-        boxShadow: highlight ? '0 1px 3px rgba(16,185,129,0.15)' : 'none',
+        boxShadow: highlight ? '0 1px 3px rgba(16,185,129,0.12)' : 'none',
       }}
       onMouseEnter={(e) => {
         if (!active && !highlight) e.currentTarget.style.backgroundColor = '#f7f5ef';
@@ -759,7 +756,7 @@ function ToolItem({
             color: active ? '#0f3e17' : '#6b7c6e',
             fontWeight: 700,
             backgroundColor: active ? 'rgba(16,185,129,0.2)' : '#f0ece2',
-            padding: '1px 3px',
+            padding: '1px 4px',
             borderRadius: 2,
             marginLeft: 2,
           }}
