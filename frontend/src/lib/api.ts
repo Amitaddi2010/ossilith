@@ -451,3 +451,67 @@ export async function startEvaluationTrial(customerName?: string): Promise<Licen
     body: JSON.stringify({ customer_name: customerName || 'Clinical Evaluation User' }),
   });
 }
+
+// ── Admin License Portal ──────────────────────────────────
+
+export interface AdminLicenseRecord {
+  license_id: string;
+  customer: string;
+  organization: string;
+  email: string;
+  hwid: string;
+  tier: string;
+  issued_date: string;
+  expiry_date?: string | null;
+  days_valid: number;
+  features: string[];
+  max_cases: number;
+  license_key: string;
+  is_revoked: boolean;
+  notes?: string | null;
+  status: string;
+}
+
+export interface AdminStats {
+  total_issued: number;
+  active_count: number;
+  revoked_count: number;
+
+  expiring_soon_count: number;
+  tier_breakdown: Record<string, number>;
+}
+
+export interface GenerateLicensePayload {
+  customer: string;
+  organization?: string;
+  email?: string;
+  hwid?: string;
+  tier?: string;
+  days?: number;
+  features?: string[];
+  max_cases?: number;
+  notes?: string;
+}
+
+export async function fetchAdminLicenses(): Promise<AdminLicenseRecord[]> {
+  return apiFetch<AdminLicenseRecord[]>('/api/admin/licenses');
+}
+
+export async function generateAdminLicense(payload: GenerateLicensePayload): Promise<AdminLicenseRecord> {
+  return apiFetch<AdminLicenseRecord>('/api/admin/licenses/generate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function revokeAdminLicense(licenseId: string, reason?: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>('/api/admin/licenses/revoke', {
+    method: 'POST',
+    body: JSON.stringify({ license_id: licenseId, reason: reason || 'Revoked by Administrator' }),
+  });
+}
+
+export async function fetchAdminStats(): Promise<AdminStats> {
+  return apiFetch<AdminStats>('/api/admin/licenses/stats');
+}
+

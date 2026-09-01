@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 from app.config import settings
 from app.database import engine
 from app.models import Base
-from app.routers import cases, health, import_, volume, segmentation, stl, autoseg, license
+from app.routers import cases, health, import_, volume, segmentation, stl, autoseg, license, admin_license
+
 
 
 
@@ -72,6 +73,8 @@ app.include_router(segmentation.router)
 app.include_router(stl.router)
 app.include_router(autoseg.router)
 app.include_router(license.router)
+app.include_router(admin_license.router)
+
 
 
 
