@@ -624,6 +624,7 @@ function ActiveGizmo({
 
   return (
     <TransformControls
+      key={`${activeObject.id}-${mode}`}
       ref={transformRef}
       mode={mode}
       size={0.85}
@@ -633,6 +634,16 @@ function ActiveGizmo({
       position={activeObject.position}
       rotation={activeObject.rotation}
       scale={activeObject.scale}
+      onObjectChange={() => {
+        if (transformRef.current?.object) {
+          const o = transformRef.current.object;
+          useEditorStore.getState().updateObject(activeObject.id, {
+            position: [o.position.x, o.position.y, o.position.z],
+            rotation: [o.rotation.x, o.rotation.y, o.rotation.z],
+            scale: [o.scale.x, o.scale.y, o.scale.z],
+          });
+        }
+      }}
       onMouseUp={() => {
         if (transformRef.current?.object) {
           const o = transformRef.current.object;

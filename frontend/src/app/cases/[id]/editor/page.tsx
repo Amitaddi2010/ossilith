@@ -347,6 +347,13 @@ export default function CaseEditorPage() {
               const buffer = await fileRes.arrayBuffer();
               const geometry = loader.parse(buffer);
               geometry.computeVertexNormals();
+              geometry.computeBoundingBox();
+              const center = new THREE.Vector3();
+              if (geometry.boundingBox) {
+                geometry.boundingBox.getCenter(center);
+                geometry.translate(-center.x, -center.y, -center.z);
+                geometry.computeBoundingBox();
+              }
 
               const colors = ['#e8dcc8', '#b6ced5', '#a8d5ba', '#e29578', '#f3c98b'];
               const colorIdx = (parseInt(item.layer_id, 16) || 1) % colors.length;
@@ -354,13 +361,18 @@ export default function CaseEditorPage() {
               const layerName = item.layer_name || item.file_name?.replace(/\.stl$/i, '') || item.filename?.replace(/\.stl$/i, '') || `Layer ${item.layer_id}`;
               const layerColor = item.layer_color || colors[colorIdx];
 
+              const initPos: [number, number, number] = [center.x, center.y, center.z];
+
               addObject({
                 id: item.id || `stl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
                 name: layerName,
                 geometry,
-                position: [0, 0, 0],
+                position: initPos,
                 rotation: [0, 0, 0],
                 scale: [1, 1, 1],
+                initialPosition: initPos,
+                initialRotation: [0, 0, 0],
+                initialScale: [1, 1, 1],
                 color: layerColor,
                 opacity: 1.0,
                 visible: true,
@@ -764,9 +776,30 @@ export default function CaseEditorPage() {
     if (!activeObj) return;
     try {
       const geo = activeObj.geometry.clone();
-      geo.center();
-      updateObject(activeObj.id, { geometry: geo, position: [0, 0, 0] });
-      success('Pivot Centered', 'Model aligned to origin (0,0,0)');
+      geo.computeBoundingBox();
+      if (!geo.boundingBox) return;
+      const center = new THREE.Vector3();
+      geo.boundingBox.getCenter(center);
+      if (center.lengthSq() < 1e-4) {
+        success('Pivot Already Centered', 'Pivot is already at mesh center');
+        return;
+      }
+      geo.translate(-center.x, -center.y, -center.z);
+      geo.computeBoundingBox();
+      geo.computeVertexNormals();
+
+      const euler = new THREE.Euler(...activeObj.rotation);
+      const scaleVec = new THREE.Vector3(...activeObj.scale);
+      const worldOffset = center.clone().multiply(scaleVec).applyEuler(euler);
+
+      const newPos: [number, number, number] = [
+        activeObj.position[0] + worldOffset.x,
+        activeObj.position[1] + worldOffset.y,
+        activeObj.position[2] + worldOffset.z,
+      ];
+
+      updateObject(activeObj.id, { geometry: geo, position: newPos });
+      success('Pivot Centered', 'Pivot aligned to mesh center');
     } catch {
       toastError('Failed to center pivot');
     }

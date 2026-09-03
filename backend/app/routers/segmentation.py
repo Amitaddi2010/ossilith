@@ -5,7 +5,7 @@ Segmentation router — Stage 3: layer management, nnInteractive sessions, promp
 import io
 import logging
 import uuid
-from typing import Any
+from typing import Any, Optional
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -36,6 +36,12 @@ _layer_mask_path_cache: dict[str, str] = {}
 class LayerCreate(BaseModel):
     name: str
     color: str = "#00FFAA"
+
+
+class LayerUpdate(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+    status: Optional[str] = None
 
 
 class LayerResponse(BaseModel):
@@ -177,6 +183,111 @@ async def list_layers(
             for layer in layers
         ]
     }
+
+
+@router.get("/{case_id}/layers/{layer_id}")
+async def get_layer(
+    case_id: uuid.UUID,
+    layer_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get single layer by ID."""
+    result = await db.execute(
+        select(SegmentationLayer)
+        .join(Series)
+        .where(Series.case_id == case_id)
+        .where(SegmentationLayer.id == layer_id)
+    )
+    layer = result.scalar_one_or_none()
+    if not layer:
+        raise HTTPException(status_code=404, detail="Layer not found")
+    return {
+        "id": str(layer.id),
+        "name": layer.name,
+        "color": layer.color,
+        "status": layer.status.value,
+        "mask_path": layer.mask_path,
+        "created_at": layer.created_at.isoformat(),
+    }
+
+
+@router.patch("/{case_id}/layers/{layer_id}")
+async def update_layer(
+    case_id: uuid.UUID,
+    layer_id: uuid.UUID,
+    body: LayerUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update layer name, color, or status."""
+    result = await db.execute(
+        select(SegmentationLayer)
+        .join(Series)
+        .where(Series.case_id == case_id)
+        .where(SegmentationLayer.id == layer_id)
+    )
+    layer = result.scalar_one_or_none()
+    if not layer:
+        raise HTTPException(status_code=404, detail="Layer not found")
+
+    if body.name is not None:
+        layer.name = body.name
+    if body.color is not None:
+        layer.color = body.color
+        _layer_color_cache[str(layer.id)] = body.color
+    if body.status is not None:
+        try:
+            layer.status = LayerStatus(body.status)
+        except ValueError:
+            pass
+
+    await db.commit()
+    await db.refresh(layer)
+    return {
+        "id": str(layer.id),
+        "name": layer.name,
+        "color": layer.color,
+        "status": layer.status.value,
+        "mask_path": layer.mask_path,
+        "created_at": layer.created_at.isoformat(),
+    }
+
+
+@router.delete("/{case_id}/layers/{layer_id}")
+async def delete_layer(
+    case_id: uuid.UUID,
+    layer_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete layer from database and cleanup mask buffers/files."""
+    result = await db.execute(
+        select(SegmentationLayer)
+        .join(Series)
+        .where(Series.case_id == case_id)
+        .where(SegmentationLayer.id == layer_id)
+    )
+    layer = result.scalar_one_or_none()
+    if not layer:
+        raise HTTPException(status_code=404, detail="Layer not found")
+
+    layer_id_str = str(layer_id)
+    _layer_color_cache.pop(layer_id_str, None)
+    _layer_mask_path_cache.pop(layer_id_str, None)
+
+    # Clean in-memory masks
+    if hasattr(nninteractive_manager, "_masks") and layer_id_str in nninteractive_manager._masks:
+        nninteractive_manager._masks.pop(layer_id_str, None)
+    if hasattr(nninteractive_manager, "_sessions") and layer_id_str in nninteractive_manager._sessions:
+        nninteractive_manager._sessions.pop(layer_id_str, None)
+
+    if layer.mask_path and Path(layer.mask_path).exists():
+        try:
+            Path(layer.mask_path).unlink()
+        except Exception as e:
+            logger.warning(f"Could not delete mask file {layer.mask_path}: {e}")
+
+    await db.delete(layer)
+    await db.commit()
+    return {"status": "deleted", "id": layer_id_str}
 
 
 

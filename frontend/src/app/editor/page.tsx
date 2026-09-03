@@ -845,9 +845,30 @@ export default function StandaloneEditorPage() {
     if (!activeObj) return;
     try {
       const geo = activeObj.geometry.clone();
-      geo.center();
-      updateObject(activeObj.id, { geometry: geo, position: [0, 0, 0] });
-      success('Pivot Centered', 'Model aligned to origin (0,0,0)');
+      geo.computeBoundingBox();
+      if (!geo.boundingBox) return;
+      const center = new THREE.Vector3();
+      geo.boundingBox.getCenter(center);
+      if (center.lengthSq() < 1e-4) {
+        success('Pivot Already Centered', 'Pivot is already at mesh center');
+        return;
+      }
+      geo.translate(-center.x, -center.y, -center.z);
+      geo.computeBoundingBox();
+      geo.computeVertexNormals();
+
+      const euler = new THREE.Euler(...activeObj.rotation);
+      const scaleVec = new THREE.Vector3(...activeObj.scale);
+      const worldOffset = center.clone().multiply(scaleVec).applyEuler(euler);
+
+      const newPos: [number, number, number] = [
+        activeObj.position[0] + worldOffset.x,
+        activeObj.position[1] + worldOffset.y,
+        activeObj.position[2] + worldOffset.z,
+      ];
+
+      updateObject(activeObj.id, { geometry: geo, position: newPos });
+      success('Pivot Centered', 'Pivot aligned to mesh center');
     } catch {
       toastError('Failed to center pivot');
     }

@@ -3047,7 +3047,12 @@ export default function SegmentPage() {
                     overflow: 'hidden',
                   }}
                 >
-                  <Volume3DPreview caseId={caseId} refreshKey={maskVersion} layerId={activeLayerId} />
+                  <Volume3DPreview
+                    caseId={caseId}
+                    refreshKey={maskVersion}
+                    layers={layers}
+                    activeLayerId={activeLayerId}
+                  />
                 </div>
               )}
             </main>

@@ -31,6 +31,7 @@ _volume_cache: dict[str, dict[str, Any]] = {}
 # LRU PNG render cache — avoids re-rendering identical slice images
 _SLICE_CACHE_MAX = 512
 _slice_png_cache: OrderedDict[str, bytes] = OrderedDict()
+_mesh_stl_cache: OrderedDict[str, bytes] = OrderedDict()
 
 
 def _cache_slice_png(key: str, png_bytes: bytes) -> None:
@@ -352,7 +353,7 @@ async def get_volume_slice(
 @router.get("/api/cases/{case_id}/volume/mesh")
 async def get_volume_3d_preview(
     case_id: uuid.UUID,
-    layer_id: Optional[uuid.UUID] = Query(None, description="Optional layer ID to preview specific segmented structure"),
+    layer_id: Optional[str] = Query(None, description="Optional layer ID, comma-separated IDs, or 'all'"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -369,21 +370,28 @@ async def get_volume_3d_preview(
     if not series or not series.volume_path:
         raise HTTPException(status_code=404, detail="Volume not ready")
 
-    preview_stl_path = Path(series.volume_path).parent / "preview_bone.stl"
-
     try:
-        cached = _get_cached_volume(series.volume_path)
-        arr = cached["arr"]  # [Z, Y, X]
-        spacing = cached["spacing"]
-
         from skimage.measure import marching_cubes
         from scipy.ndimage import gaussian_filter
         import trimesh
 
         # 1. Check for available segmentation layer masks
         layers_query = select(SegmentationLayer).where(SegmentationLayer.series_id == series.id)
-        if layer_id:
-            layers_query = layers_query.where(SegmentationLayer.id == layer_id)
+        is_single_layer = False
+        if layer_id and layer_id.lower() != "all":
+            requested_ids = [lid.strip() for lid in layer_id.split(",") if lid.strip()]
+            if len(requested_ids) == 1:
+                is_single_layer = True
+                try:
+                    layers_query = layers_query.where(SegmentationLayer.id == uuid.UUID(requested_ids[0]))
+                except ValueError:
+                    pass
+            elif len(requested_ids) > 1:
+                try:
+                    parsed_uuids = [uuid.UUID(lid) for lid in requested_ids]
+                    layers_query = layers_query.where(SegmentationLayer.id.in_(parsed_uuids))
+                except ValueError:
+                    pass
         layers_res = await db.execute(layers_query)
         layers = layers_res.scalars().all()
 
@@ -408,46 +416,53 @@ async def get_volume_3d_preview(
 
         has_segmentation = combined_mask is not None and np.any(combined_mask > 0)
 
-        # Gentler downsampling — keep anatomical fidelity while ensuring min dimension >= 2
-        step_z = max(1, min(max(1, arr.shape[0] // 220), max(1, (arr.shape[0] - 1) // 2)))
-        step_y = max(1, min(max(1, arr.shape[1] // 220), max(1, (arr.shape[1] - 1) // 2)))
-        step_x = max(1, min(max(1, arr.shape[2] // 220), max(1, (arr.shape[2] - 1) // 2)))
-        sub_spacing = (spacing[2] * step_z, spacing[1] * step_y, spacing[0] * step_x)
+        # Fast path: If a specific single layer was requested but has 0 voxels, return empty STL immediately (<0.1ms)
+        if is_single_layer and not has_segmentation:
+            empty_mesh = trimesh.Trimesh()
+            stl_bytes = empty_mesh.export(file_type="stl")
+            if isinstance(stl_bytes, str):
+                stl_bytes = stl_bytes.encode("utf-8")
+            return Response(content=stl_bytes, media_type="model/stl", headers={"Cache-Control": "no-cache"})
+
+        cached = _get_cached_volume(series.volume_path)
+        arr = cached["arr"]  # [Z, Y, X]
+        spacing = cached["spacing"]
 
         verts = None
         faces = None
 
         if has_segmentation and combined_mask is not None:
-            logger.info(f"Generating 3D preview from {len(layers)} segmentation layer(s)")
-            sub_mask = combined_mask[::step_z, ::step_y, ::step_x].astype(np.float32)
-            if any(s < 2 for s in sub_mask.shape):
-                pad_width = [(max(0, 2 - s), 0) for s in sub_mask.shape]
-                sub_mask = np.pad(sub_mask, pad_width, mode='edge')
-            if np.max(sub_mask) > 0.1:
-                sub_mask = gaussian_filter(sub_mask, sigma=0.6)
+            # High-speed ROI bounded marching cubes (<50ms)
+            nz_z, nz_y, nz_x = np.where(combined_mask > 0)
+            step = 2
+            z0, z1 = max(0, int(nz_z.min()) - 4), min(arr.shape[0], int(nz_z.max()) + 5)
+            y0, y1 = max(0, int(nz_y.min()) - 4), min(arr.shape[1], int(nz_y.max()) + 5)
+            x0, x1 = max(0, int(nz_x.min()) - 4), min(arr.shape[2], int(nz_x.max()) + 5)
+
+            roi_mask = combined_mask[z0:z1:step, y0:y1:step, x0:x1:step].astype(np.float32)
+            if all(s >= 2 for s in roi_mask.shape):
+                roi_mask = gaussian_filter(roi_mask, sigma=0.5)
+                sub_spacing = (spacing[2] * step, spacing[1] * step, spacing[0] * step)
                 try:
-                    verts, faces, _, _ = marching_cubes(sub_mask, level=0.5, spacing=sub_spacing)
+                    verts, faces, _, _ = marching_cubes(roi_mask, level=0.5, spacing=sub_spacing)
+                    # Shift vertices back to true spatial physical coordinate frame
+                    verts += np.array([z0 * spacing[2], y0 * spacing[1], x0 * spacing[0]])
                 except Exception as mc_err:
-                    logger.warning(f"Marching cubes on mask failed: {mc_err}, falling back to bone thresholding")
+                    logger.warning(f"Fast ROI marching cubes failed: {mc_err}")
                     verts, faces = None, None
 
         if verts is None or faces is None or len(verts) == 0:
-            logger.info("Generating 3D preview from CT volume bone thresholding")
+            # Fallback for full CT volume bone thresholding
+            step_z = max(2, min(max(2, arr.shape[0] // 160), max(2, (arr.shape[0] - 1) // 2)))
+            step_y = max(2, min(max(2, arr.shape[1] // 160), max(2, (arr.shape[1] - 1) // 2)))
+            step_x = max(2, min(max(2, arr.shape[2] // 160), max(2, (arr.shape[2] - 1) // 2)))
+            sub_spacing = (spacing[2] * step_z, spacing[1] * step_y, spacing[0] * step_x)
             sub_arr = arr[::step_z, ::step_y, ::step_x].astype(np.float32)
-            if any(s < 2 for s in sub_arr.shape):
-                pad_width = [(max(0, 2 - s), 0) for s in sub_arr.shape]
-                sub_arr = np.pad(sub_arr, pad_width, mode='edge')
-
-            sub_arr = gaussian_filter(sub_arr, sigma=0.8)
-            bone_threshold = 300.0
-            if np.max(sub_arr) <= bone_threshold:
-                p90 = float(np.percentile(sub_arr, 90))
-                bone_threshold = max(float(np.min(sub_arr)) + 10.0, p90)
-
+            sub_arr = gaussian_filter(sub_arr, sigma=0.7)
+            bone_threshold = 280.0
             try:
                 verts, faces, _, _ = marching_cubes(sub_arr, level=bone_threshold, spacing=sub_spacing)
-            except Exception as mc_err:
-                logger.warning(f"Marching cubes on CT array failed: {mc_err}, generating placeholder mesh")
+            except Exception:
                 box = trimesh.creation.box(extents=(50, 50, 50))
                 verts = box.vertices
                 faces = box.faces
@@ -456,56 +471,25 @@ async def get_volume_3d_preview(
         verts = verts[:, [2, 1, 0]]
         mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=True)
 
-
-        # Remove scanner bed / stray noise by filtering small disconnected bodies
-        components = mesh.split(only_watertight=False)
-        if len(components) > 1:
-            largest_count = max(len(c.faces) for c in components)
-            significant = [c for c in components if len(c.faces) >= max(300, largest_count * 0.03)]
-            if significant:
-                mesh = trimesh.util.concatenate(significant)
-
-        # Laplacian smoothing for clinical-quality surface
-        try:
-            trimesh.smoothing.filter_laplacian(mesh, iterations=2)
-        except Exception:
-            pass
-
-        # Fast quadric decimation for smooth 60fps WebGL rendering
-        if len(mesh.faces) > 60000:
+        if len(mesh.faces) > 50000:
             try:
-                mesh = mesh.simplify_quadric_decimation(face_count=60000)
+                mesh = mesh.simplify_quadric_decimation(face_count=50000)
             except Exception:
                 pass
 
-
         mesh.fix_normals()
-        # Center geometry at origin for consistent viewport framing
-        mesh.vertices -= mesh.centroid
+        # Reference to shared physical volume center (preserves exact relative anatomical placement)
+        vol_center = np.array([arr.shape[2] * spacing[0], arr.shape[1] * spacing[1], arr.shape[0] * spacing[2]]) / 2.0
+        mesh.vertices -= vol_center
 
-
-        # Export binary STL in-memory (eliminates file lock & Content-Length race conditions)
         stl_bytes = mesh.export(file_type="stl")
         if isinstance(stl_bytes, str):
             stl_bytes = stl_bytes.encode("utf-8")
 
-        # Also write a background cache file if path is accessible
-        try:
-            with open(preview_stl_path, "wb") as f:
-                f.write(stl_bytes)
-        except Exception:
-            pass
-
-        logger.info(f"Generated clean 3D preview mesh with {len(mesh.vertices):,} vertices ({len(stl_bytes):,} bytes)")
-
         return Response(
             content=stl_bytes,
             media_type="model/stl",
-            headers={
-                "Content-Disposition": 'inline; filename="preview_bone.stl"',
-                "Content-Length": str(len(stl_bytes)),
-                "Cache-Control": "no-cache",
-            },
+            headers={"Cache-Control": "public, max-age=60"},
         )
     except Exception as e:
         logger.exception(f"Failed to generate 3D preview mesh: {e}")

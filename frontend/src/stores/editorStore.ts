@@ -15,6 +15,9 @@ export interface STLObject {
   position: [number, number, number];
   rotation: [number, number, number];
   scale: [number, number, number];
+  initialPosition?: [number, number, number];
+  initialRotation?: [number, number, number];
+  initialScale?: [number, number, number];
   color: string;
   opacity: number;
   visible: boolean;
@@ -483,13 +486,56 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   addObject: (obj, recordUndo = true) =>
     set((state) => {
+      let finalObj = { ...obj };
+      const geo = obj.geometry;
+      if (geo) {
+        if (!geo.boundingBox) geo.computeBoundingBox();
+        if (geo.boundingBox) {
+          const center = new THREE.Vector3();
+          geo.boundingBox.getCenter(center);
+          // If geometry vertices have a center offset from local origin, center the geometry and shift position
+          if (center.lengthSq() > 1e-4) {
+            const clonedGeo = geo.clone();
+            clonedGeo.translate(-center.x, -center.y, -center.z);
+            clonedGeo.computeBoundingBox();
+            clonedGeo.computeVertexNormals();
+
+            const euler = new THREE.Euler(...(obj.rotation || [0, 0, 0]));
+            const scaleVec = new THREE.Vector3(...(obj.scale || [1, 1, 1]));
+            const worldOffset = center.clone().multiply(scaleVec).applyEuler(euler);
+
+            const newPos: [number, number, number] = [
+              (obj.position ? obj.position[0] : 0) + worldOffset.x,
+              (obj.position ? obj.position[1] : 0) + worldOffset.y,
+              (obj.position ? obj.position[2] : 0) + worldOffset.z,
+            ];
+
+            finalObj = {
+              ...obj,
+              geometry: clonedGeo,
+              position: newPos,
+              initialPosition: newPos,
+              initialRotation: obj.rotation ? [...obj.rotation] : [0, 0, 0],
+              initialScale: obj.scale ? [...obj.scale] : [1, 1, 1],
+            };
+          } else if (!finalObj.initialPosition) {
+            finalObj = {
+              ...finalObj,
+              initialPosition: obj.position ? [...obj.position] : [0, 0, 0],
+              initialRotation: obj.rotation ? [...obj.rotation] : [0, 0, 0],
+              initialScale: obj.scale ? [...obj.scale] : [1, 1, 1],
+            };
+          }
+        }
+      }
+
       const next = new Map(state.objects);
-      next.set(obj.id, obj);
-      const sel = new Set([obj.id]);
+      next.set(finalObj.id, finalObj);
+      const sel = new Set([finalObj.id]);
 
       if (recordUndo) {
-        const before = new Map<string, STLObject | null>([[obj.id, null]]);
-        const after = new Map<string, STLObject | null>([[obj.id, { ...obj }]]);
+        const before = new Map<string, STLObject | null>([[finalObj.id, null]]);
+        const after = new Map<string, STLObject | null>([[finalObj.id, { ...finalObj }]]);
         const op: EditOperation = {
           type: 'add',
           timestamp: Date.now(),
@@ -852,7 +898,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       rotation: [...obj.rotation] as [number, number, number],
       scale: [...obj.scale] as [number, number, number],
     };
-    const afterObj: STLObject = { ...obj, position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] };
+    const targetPos = obj.initialPosition ? [...obj.initialPosition] as [number, number, number] : [...obj.position] as [number, number, number];
+    const targetRot = obj.initialRotation ? [...obj.initialRotation] as [number, number, number] : [0, 0, 0] as [number, number, number];
+    const targetScale = obj.initialScale ? [...obj.initialScale] as [number, number, number] : [1, 1, 1] as [number, number, number];
+    const afterObj: STLObject = { ...obj, position: targetPos, rotation: targetRot, scale: targetScale };
 
     const before = new Map<string, STLObject | null>([[id, beforeObj]]);
     const after = new Map<string, STLObject | null>([[id, afterObj]]);
